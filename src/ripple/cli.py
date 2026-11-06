@@ -28,6 +28,8 @@ from ripple.forecasts.models import (
     MODELS,
     generate_multi_asset_forecasts,
 )
+from ripple.ledger.forward import ForwardDecisionLedger, verify_ledger
+from ripple.policies.allocation import allocate_from_forecasts
 from ripple.simulation.replay import replay
 from ripple.strategies.baselines import BuyAndHold, MonthlyEqualWeight
 from ripple.stress.search import DEFAULT_STRESS_MODELS, run_stress_search, write_stress_report
@@ -141,6 +143,15 @@ def main():
     st.add_argument("--window", type=int, default=1260)
     st.add_argument("--step", type=int, default=5)
 
+    lg = sub.add_parser("ledger", help="Manage and verify Phase 6 prospective forward ledger")
+    lgs = lg.add_subparsers(dest="ledger_command", required=True)
+    lg_commit = lgs.add_parser("commit-latest", help="Commit latest forward decision to ledger")
+    lg_commit.add_argument("--forecasts", default="artifacts/forecasts/2016-2026")
+    lg_commit.add_argument("--model", default="ewma094")
+    lg_commit.add_argument("--ledger", default="artifacts/forward/ledger.jsonl")
+    lg_verify = lgs.add_parser("verify", help="Verify hash chain and invariants of forward ledger")
+    lg_verify.add_argument("--ledger", default="artifacts/forward/ledger.jsonl")
+
     args = parser.parse_args()
     try:
         if args.command == "data":
@@ -149,6 +160,61 @@ def main():
             yf.set_tz_cache_location(str(cache))
             result = fetch(Path(args.output), args.start, args.end_exclusive)
             print(json.dumps(result, indent=2))
+            return 0
+        if args.command == "ledger":
+            ledger_path = Path(args.ledger)
+            if args.ledger_command == "verify":
+                summary = verify_ledger(ledger_path)
+                print(json.dumps(summary, indent=2))
+                return 0
+            records, _, f_manifest = load_forecast_bundle(Path(args.forecasts))
+            model_records = [r for r in records if r.model_id == args.model]
+            if not model_records:
+                raise ValueError(f"No forecasts found for model {args.model}")
+            latest_session = max(r.forecast_session for r in model_records)
+            slice_records = [r for r in model_records if r.forecast_session == latest_session]
+            cutoff_utc = max(r.as_of_utc for r in slice_records)
+            dec = allocate_from_forecasts(
+                slice_records,
+                decision_session=latest_session,
+                decision_cutoff_utc=cutoff_utc,
+                expected_model_id=args.model,
+            )
+            now_iso = datetime.now(timezone.utc).isoformat()
+            run_id = f"fwd-{latest_session}-{args.model}"
+            ledger = ForwardDecisionLedger(ledger_path)
+            common_kw = {
+                "run_id": run_id,
+                "scheduled_utc": cutoff_utc.isoformat(),
+                "observation_cutoff_utc": cutoff_utc.isoformat(),
+                "strategy_id": f"forecast_{args.model}",
+                "model_id": args.model,
+                "config_sha256": f_manifest["artifact_hashes"]["config.json"],
+                "dataset_sha256": slice_records[0].data_sha256,
+            }
+            ledger.append_event(**common_kw, event_type="run_scheduled", recorded_utc=now_iso)
+            ledger.append_event(**common_kw, event_type="data_snapshot_ready", recorded_utc=now_iso)
+            ledger.append_event(
+                **common_kw, event_type="prediction_generated", recorded_utc=now_iso
+            )
+            committed = ledger.append_event(
+                **common_kw,
+                event_type="decision_committed",
+                recorded_utc=now_iso,
+                proposed_weights=dec.target_weights if dec.action != "skip_retain" else None,
+                cash_weight=dec.cash_weight,
+                status="success" if dec.action != "skip_retain" else "skipped",
+                error_reason=dec.reason,
+            )
+            print(
+                json.dumps(
+                    {
+                        "committed_record": committed.to_dict(),
+                        "verification": verify_ledger(ledger_path),
+                    },
+                    indent=2,
+                )
+            )
             return 0
         if args.command == "stress":
             snap_dir = Path(args.snapshot)
