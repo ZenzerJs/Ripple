@@ -23,18 +23,21 @@ import { PhaseLabView } from "@/components/PhaseLabView";
 interface RippleViewerProps {
   initialIndex: RunIndexManifest;
   initialRunsByFile: Record<string, unknown>;
+  initialHashesByFile?: Record<string, string>;
   initialLabBundle: PortfolioReplayBundle | null;
 }
 
 export function RippleViewer({
   initialIndex,
   initialRunsByFile,
+  initialHashesByFile = {},
   initialLabBundle,
 }: RippleViewerProps) {
   const [activeTab, setActiveTab] = useState<ScreenTab>("overview");
   const [selectedRunId, setSelectedRunId] = useState<string>(
     initialIndex.default_run_id
   );
+  const [showFixtures, setShowFixtures] = useState<boolean>(false);
   const [horizon, setHorizon] = useState<number>(6);
   const [model, setModel] = useState<string>("ridge");
   const [scope, setScope] = useState<ScopeType>("common_dates");
@@ -58,6 +61,9 @@ export function RippleViewer({
       setReducedMotion(currentMotion);
 
       const params = new URLSearchParams(window.location.search);
+      if (params.get("fixtures") === "1" || params.get("fixtures") === "true") {
+        setShowFixtures(true);
+      }
       const tabParam = params.get("tab") as ScreenTab | null;
       if (
         tabParam &&
@@ -156,6 +162,11 @@ export function RippleViewer({
     initialIndex.runs.find((r) => r.run_id === selectedRunId) ??
     initialIndex.runs[0];
   const rawRunPayload = initialRunsByFile[selectedEntry.file];
+  const hashVerified = Boolean(
+    selectedEntry.sha256 &&
+      initialHashesByFile[selectedEntry.file] &&
+      selectedEntry.sha256 === initialHashesByFile[selectedEntry.file]
+  );
   const validation = useMemo(
     () => validateLeakageAuditRun(rawRunPayload),
     [rawRunPayload]
@@ -168,6 +179,8 @@ export function RippleViewer({
         <RunHeader
           kind="leakage_audit"
           status="invalid"
+          hashVerified={hashVerified}
+          showFixtures={showFixtures}
           ticker={selectedEntry.ticker}
           frequency="monthly"
           activeTab={activeTab}
@@ -249,6 +262,8 @@ export function RippleViewer({
       <RunHeader
         kind={run.kind}
         status={run.status}
+        hashVerified={hashVerified}
+        showFixtures={showFixtures}
         ticker={run.source.ticker}
         frequency={run.source.frequency}
         windowStart={run.source.window_start}

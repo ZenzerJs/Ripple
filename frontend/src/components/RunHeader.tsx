@@ -8,6 +8,8 @@ export type ScreenTab = "overview" | "compare" | "fold" | "method" | "lab";
 interface RunHeaderProps {
   kind: string;
   status: RunStatus | "invalid";
+  hashVerified?: boolean;
+  showFixtures?: boolean;
   ticker: string;
   frequency: string;
   windowStart?: string;
@@ -26,6 +28,8 @@ interface RunHeaderProps {
 export function RunHeader({
   kind,
   status,
+  hashVerified = false,
+  showFixtures = false,
   ticker,
   frequency,
   windowStart,
@@ -45,7 +49,9 @@ export function RunHeader({
   const kindLabel =
     kind === "leakage_audit" ? "TEMPORAL INTEGRITY" : "PORTFOLIO & STRESS LAB";
 
-  const selectableRuns = runs;
+  const selectableRuns = runs.filter(
+    (r) => showFixtures || !r.fixture || r.run_id === selectedRunId
+  );
 
   const navItems: Array<{ id: ScreenTab; label: string }> = [
     { id: "overview", label: "Overview" },
@@ -276,7 +282,9 @@ export function RunHeader({
                 className="inline-flex items-center gap-1.5 rounded-full bg-ok-tint px-2.5 py-0.5 text-[12px] font-semibold tracking-normal normal-case text-text border border-ok"
               >
                 <span className="h-2 w-2 rounded-full bg-ok" aria-hidden="true" />
-                Verified
+                {hashVerified
+                  ? "Exported · SHA-256 verified"
+                  : "Exported · Unchecked hash"}
               </span>
             )}
             {status === "draft" && (

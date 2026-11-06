@@ -6,9 +6,13 @@ test.describe("Ripple Frontend Viewer E2E", () => {
   }) => {
     await page.goto("/");
 
-    // 1. Default theme is Still water (light)
+    // 1. Default theme is Still water (light), SHA-256 badge is verified, and fixtures are hidden by default
     const html = page.locator("html");
     await expect(html).toHaveAttribute("data-theme", "light");
+    await expect(page.getByTestId("status-badge-verified")).toContainText(
+      "Exported · SHA-256 verified"
+    );
+    await expect(page.getByTestId("run-selector").locator("option")).toHaveCount(2);
 
     // 2. Overview screen question, templated finding, visible limitation, and temporal boundary
     await expect(page.getByTestId("overview-question-heading")).toContainText(
@@ -82,9 +86,9 @@ test.describe("Ripple Frontend Viewer E2E", () => {
   test("handles Draft run exclusion on Overview, Failed & Unavailable fold states, Null-difference run, Invalid provenance block, Unsupported URL recovery, and Phase 3-6 Lab view", async ({
     page,
   }) => {
-    // 1. Tampered URL with unsupported horizon=24 and unknown model -> verify recovery banner
+    // 1. Tampered URL with unsupported horizon=24 and unknown model (with fixtures=1 enabled) -> verify recovery banner
     await page.goto(
-      "/?tab=compare&run=leakage-audit-spy-2016-2026&horizon=24&model=unknown_model"
+      "/?fixtures=1&tab=compare&run=leakage-audit-spy-2016-2026&horizon=24&model=unknown_model"
     );
     await expect(
       page.getByTestId("unsupported-comparison-banner")
@@ -94,19 +98,16 @@ test.describe("Ripple Frontend Viewer E2E", () => {
       page.getByTestId("unsupported-comparison-banner")
     ).toHaveCount(0);
 
-    // 2. Select Null-Difference Control Run
+    // 2. Select Null-Difference Control Run (fixture has status=draft, so inspect on Compare)
     await page
       .getByTestId("run-selector")
       .selectOption("leakage-audit-vnq-null-control");
-    await page.getByTestId("nav-overview").click();
-    await expect(page.getByTestId("finding-headline")).toContainText(
-      "was unchanged at"
+    await expect(page.getByTestId("metric-pair-mae")).toContainText(
+      "No change"
     );
 
-    // 3. Select Draft run (GLD) while on Overview -> verify persistent unverified banner AND exclusion from Overview
-    await page
-      .getByTestId("run-selector")
-      .selectOption("leakage-audit-gld-draft");
+    // 3. Select Draft run (GLD) and navigate to Overview -> verify persistent unverified banner AND exclusion from Overview when accessed via URL
+    await page.goto("/?fixtures=1&tab=overview&run=leakage-audit-gld-draft");
     await expect(page.getByTestId("draft-run-banner")).toBeVisible();
     await expect(page.getByTestId("status-badge-draft")).toContainText("Draft");
     await expect(
@@ -122,14 +123,14 @@ test.describe("Ripple Frontend Viewer E2E", () => {
       "Failed · Nonconverged"
     );
     await expect(page.getByTestId("fold-non-ok-banner")).toContainText(
-      "failed to converge"
+      "UI fixture: injected model_failed state"
     );
     await page.getByTestId("fold-jump-unavailable").click();
     await expect(page.getByTestId("fold-state-badge")).toContainText(
       "Unavailable · Missing input"
     );
     await expect(page.getByTestId("fold-non-ok-banner")).toContainText(
-      "missing feature observation"
+      "UI fixture: injected unavailable state"
     );
 
     // 5. Select Invalid Provenance Fixture -> verify full block and error reasons

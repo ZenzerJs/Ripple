@@ -78,6 +78,8 @@ export interface RunIndexEntry {
   ticker: string;
   status: "verified" | "draft" | "invalid";
   kind: string;
+  fixture?: boolean;
+  sha256?: string;
 }
 
 export interface RunIndexManifest {
@@ -435,8 +437,9 @@ export interface ComparisonViewData {
 
 export function formatModelName(model: string): string {
   switch (model) {
+    case "ar1":
     case "arima":
-      return "ARIMA / AR(1)";
+      return "AR(1) Linear";
     case "ridge":
       return "Ridge Regression";
     case "random_forest":

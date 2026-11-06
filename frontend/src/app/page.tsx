@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import React from "react";
@@ -10,10 +11,16 @@ export default function HomePage() {
   const indexManifest = JSON.parse(indexRaw) as RunIndexManifest;
 
   const runsByFile: Record<string, unknown> = {};
+  const hashesByFile: Record<string, string> = {};
   for (const entry of indexManifest.runs) {
     const filePath = path.join(runsDir, entry.file);
     if (fs.existsSync(filePath)) {
-      runsByFile[entry.file] = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+      const buf = fs.readFileSync(filePath);
+      hashesByFile[entry.file] = crypto
+        .createHash("sha256")
+        .update(buf)
+        .digest("hex");
+      runsByFile[entry.file] = JSON.parse(buf.toString("utf-8"));
     }
   }
 
@@ -31,6 +38,7 @@ export default function HomePage() {
     <RippleViewer
       initialIndex={indexManifest}
       initialRunsByFile={runsByFile}
+      initialHashesByFile={hashesByFile}
       initialLabBundle={labBundle}
     />
   );

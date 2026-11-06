@@ -27,7 +27,7 @@ describe("Ripple Frontend Data Contract & Reconciliation", () => {
     expect(run.source.repo_commit.length).toBeGreaterThanOrEqual(7);
 
     for (const h of [6, 12]) {
-      for (const m of ["arima", "ridge", "random_forest"]) {
+      for (const m of ["ar1", "ridge", "random_forest"]) {
         for (const scope of ["common_dates", "all_folds"] as const) {
           const view = computeComparisonView(run, h, m, scope);
           expect(view.isSupported).toBe(true);
