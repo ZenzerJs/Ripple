@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "run_id": "invalid-provenance-fixture",
+  "kind": "leakage_audit",
+  "status": "verified",
+  "source": {
+    "repo_commit": "",
+    "data_sha256": "",
+    "ticker": "SPY",
+    "frequency": "monthly",
+    "decision_time": "after month-end close"
+  },
+  "variants": [
+    "original",
+    "corrected"
+  ],
+  "models": [
+    "ridge"
+  ],
+  "folds": [],
+  "summary": [],
+  "limitations": []
+}

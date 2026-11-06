@@ -1,0 +1,47 @@
+{
+  "schema_version": "1.0",
+  "default_run_id": "leakage-audit-spy-2016-2026",
+  "runs": [
+    {
+      "run_id": "leakage-audit-spy-2016-2026",
+      "file": "leakage-audit-spy-2016-2026.json",
+      "label": "SPY \u00b7 Monthly Return Leakage Audit (2016\u20132026)",
+      "ticker": "SPY",
+      "status": "verified",
+      "kind": "leakage_audit"
+    },
+    {
+      "run_id": "leakage-audit-ief-2016-2026",
+      "file": "leakage-audit-ief-2016-2026.json",
+      "label": "IEF \u00b7 Treasury Monthly Leakage Audit (2016\u20132026)",
+      "ticker": "IEF",
+      "status": "verified",
+      "kind": "leakage_audit"
+    },
+    {
+      "run_id": "leakage-audit-vnq-null-control",
+      "file": "leakage-audit-vnq-null-control.json",
+      "label": "VNQ \u00b7 Null-Difference Control Run (Verified)",
+      "ticker": "VNQ",
+      "status": "verified",
+      "kind": "leakage_audit"
+    },
+    {
+      "run_id": "leakage-audit-gld-draft",
+      "file": "leakage-audit-gld-draft.json",
+      "label": "GLD \u00b7 Unverified Draft Audit (Draft State)",
+      "ticker": "GLD",
+      "status": "draft",
+      "kind": "leakage_audit"
+    },
+    {
+      "run_id": "invalid-provenance-fixture",
+      "file": "invalid-provenance.json",
+      "label": "Invalid Provenance Fixture (Schema Rejection State)",
+      "ticker": "SPY",
+      "status": "invalid",
+      "kind": "leakage_audit"
+    }
+  ],
+  "lab_bundle_file": "ripple-phase4b-to-6-lab.json"
+}
