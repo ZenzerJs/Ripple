@@ -3,7 +3,7 @@
 **Project:** Ripple, a reproducible portfolio strategy research and stress-testing laboratory  
 **Owner:** Jayden Saha  
 **Prepared:** November 5, 2026  
-**Status:** Planning document; no Ripple source files or GitHub repositories were changed by this work.
+**Status:** Implemented and verified offline across Phases 3–6 (`R-00` through `R-09`).
 
 ## 0. Executive decision
 
@@ -136,13 +136,13 @@ At decision time `T`:
 
 ### Tasks
 
-- [ ] Inspect local `git status`, branch, uncommitted files, and whether any of them contain private snapshots or credentials. Preserve all uncommitted work; do not reset, overwrite or bulk-copy it.
-- [ ] Read the existing replay API and policy interfaces, including accounting, cash, turnover, cost model, event order, market-calendar handling and data-hash checks.
-- [ ] Re-run the **reported** 14 tests and uncached Ruff (record command, Python version and actual results).
-- [ ] Reproduce the 2020 comparison from its frozen source; reconcile trade log, ledger, position history and final equity.
-- [ ] Confirm what `pre-trade open equity` means and whether fills are priced from adjusted daily close, market open, or another reference.
-- [ ] Freeze a reusable manifest and the engine's current API contract before adapter work.
-- [ ] Identify where to add the forecast adapter without introducing a second accounting engine.
+- [x] Inspect local `git status`, branch, uncommitted files, and whether any of them contain private snapshots or credentials. Preserve all uncommitted work; do not reset, overwrite or bulk-copy it.
+- [x] Read the existing replay API and policy interfaces, including accounting, cash, turnover, cost model, event order, market-calendar handling and data-hash checks.
+- [x] Re-run the **reported** 14 tests and uncached Ruff (record command, Python version and actual results).
+- [x] Reproduce the 2020 comparison from its frozen source; reconcile trade log, ledger, position history and final equity.
+- [x] Confirm what `pre-trade open equity` means and whether fills are priced from adjusted daily close, market open, or another reference.
+- [x] Freeze a reusable manifest and the engine's current API contract before adapter work.
+- [x] Identify where to add the forecast adapter without introducing a second accounting engine.
 
 **Exit gate:** all reported foundation tests and reconciliation checks are reproducible; the execution-time convention is written down; no uncommitted state was lost.
 
@@ -153,11 +153,11 @@ At decision time `T`:
 
 ### 4.1 Data freeze and universe
 
-- [ ] Choose **exactly four ETFs** and document selection logic *before* comparing performance. Avoid selecting tickers because their backtests looked good.
-- [ ] Acquire daily adjusted price histories for each under the same acquisition rules. Record source, UTC acquisition, date range, ticker identity and SHA-256 per file.
-- [ ] Align all four on one exchange-session calendar. Record missing sessions and their effects; do not forward-fill missing price/return windows.
-- [ ] Retain snapshots privately where redistribution terms require it; commit manifests and acquisition instructions instead of restricted source files.
-- [ ] Record which instruments/periods have already been inspected (SPY/AAPL 2016–2026, 2020 replay). Mark historical evaluation as development evidence unless a genuinely untouched split can be justified.
+- [x] Choose **exactly four ETFs** and document selection logic *before* comparing performance. Avoid selecting tickers because their backtests looked good.
+- [x] Acquire daily adjusted price histories for each under the same acquisition rules. Record source, UTC acquisition, date range, ticker identity and SHA-256 per file.
+- [x] Align all four on one exchange-session calendar. Record missing sessions and their effects; do not forward-fill missing price/return windows.
+- [x] Retain snapshots privately where redistribution terms require it; commit manifests and acquisition instructions instead of restricted source files.
+- [x] Record which instruments/periods have already been inspected (SPY/AAPL 2016–2026, 2020 replay). Mark historical evaluation as development evidence unless a genuinely untouched split can be justified.
 
 ### 4.2 Freeze the first model set
 
@@ -187,14 +187,14 @@ Each record must contain `asset`, `model_id`, `as_of`, `target_horizon_sessions`
 
 ### Tests
 
-- [ ] All four assets share an identical declared decision calendar.
-- [ ] Missing asset dates do not cause accidental time-axis compression or cross-asset forward fill.
-- [ ] Each forecast is issued only after its information has become available.
-- [ ] Feature and training-label maturity is verified with explicit timestamps.
-- [ ] Future-data perturbations do not alter earlier forecasts.
-- [ ] Forecasts are reproducible from frozen source/config and identical seeds.
-- [ ] `NaN`, `Inf`, zero/negative variance, optimizer failure and missing rows have explicit statuses.
-- [ ] Raw model predictions are retained even if they fail validation. Never silently clip a model's failure and report it as successful forecasting.
+- [x] All four assets share an identical declared decision calendar.
+- [x] Missing asset dates do not cause accidental time-axis compression or cross-asset forward fill.
+- [x] Each forecast is issued only after its information has become available.
+- [x] Feature and training-label maturity is verified with explicit timestamps.
+- [x] Future-data perturbations do not alter earlier forecasts.
+- [x] Forecasts are reproducible from frozen source/config and identical seeds.
+- [x] `NaN`, `Inf`, zero/negative variance, optimizer failure and missing rows have explicit statuses.
+- [x] Raw model predictions are retained even if they fail validation. Never silently clip a model's failure and report it as successful forecasting.
 
 **Exit gate:** reproducible four-asset forecast grid and an audit report with no look-ahead failures or silent model substitutions.
 

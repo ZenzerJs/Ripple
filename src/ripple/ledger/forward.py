@@ -139,12 +139,23 @@ class ForwardDecisionLedger:
     def read_records(self) -> list[LedgerRecord]:
         if not self.path.exists():
             return []
-        lines = [
-            line.strip()
-            for line in self.path.read_text(encoding="utf-8").splitlines()
-            if line.strip()
-        ]
-        return [LedgerRecord.from_dict(json.loads(line)) for line in lines]
+        records: list[LedgerRecord] = []
+        for line_no, raw_line in enumerate(
+            self.path.read_text(encoding="utf-8").splitlines(), start=1
+        ):
+            line = raw_line.strip()
+            if not line:
+                continue
+            try:
+                obj = json.loads(line)
+                if not isinstance(obj, Mapping):
+                    raise ValueError("JSON line is not an object")
+                records.append(LedgerRecord.from_dict(obj))
+            except (ValueError, KeyError, TypeError) as exc:
+                raise ValueError(
+                    f"Malformed or truncated ledger record at line {line_no}: {exc}"
+                ) from exc
+        return records
 
     def append_event(
         self,
@@ -182,6 +193,8 @@ class ForwardDecisionLedger:
         )
         outcome_clean = dict(outcome_payload) if outcome_payload is not None else None
 
+        if self.path.exists():
+            verify_ledger(self.path)
         existing = self.read_records()
         # Check idempotence or illegal rewrite for singleton lifecycle events per run_id
         if event_type != "decision_note":

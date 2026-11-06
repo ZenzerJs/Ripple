@@ -183,6 +183,16 @@ def main():
             now_iso = datetime.now(timezone.utc).isoformat()
             run_id = f"fwd-{latest_session}-{args.model}"
             ledger = ForwardDecisionLedger(ledger_path)
+            try:
+                commit_sha = subprocess.run(
+                    ["git", "rev-parse", "--verify", "HEAD"],
+                    cwd=ROOT,
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                ).stdout.strip()
+            except (OSError, subprocess.CalledProcessError):
+                commit_sha = None
             common_kw = {
                 "run_id": run_id,
                 "scheduled_utc": cutoff_utc.isoformat(),
@@ -191,6 +201,7 @@ def main():
                 "model_id": args.model,
                 "config_sha256": f_manifest["artifact_hashes"]["config.json"],
                 "dataset_sha256": slice_records[0].data_sha256,
+                "code_commit_sha": commit_sha,
             }
             ledger.append_event(**common_kw, event_type="run_scheduled", recorded_utc=now_iso)
             ledger.append_event(**common_kw, event_type="data_snapshot_ready", recorded_utc=now_iso)
