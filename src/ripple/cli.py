@@ -30,6 +30,7 @@ from ripple.forecasts.models import (
 )
 from ripple.simulation.replay import replay
 from ripple.strategies.baselines import BuyAndHold, MonthlyEqualWeight
+from ripple.stress.search import DEFAULT_STRESS_MODELS, run_stress_search, write_stress_report
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -133,6 +134,13 @@ def main():
     cf.add_argument("--max-weight", type=float, default=0.40)
     cf.add_argument("--invalid-policy", choices=("skip", "fallback_rolling21"), default="skip")
 
+    st = sub.add_parser("stress", help="Run Phase 5 constrained multi-asset block-bootstrap fuzzer")
+    st.add_argument("--snapshot", default="data/snapshots/2016-2026")
+    st.add_argument("--output", default="artifacts/stress/2016-2026")
+    st.add_argument("--min-train", type=int, default=756)
+    st.add_argument("--window", type=int, default=1260)
+    st.add_argument("--step", type=int, default=5)
+
     args = parser.parse_args()
     try:
         if args.command == "data":
@@ -141,6 +149,23 @@ def main():
             yf.set_tz_cache_location(str(cache))
             result = fetch(Path(args.output), args.start, args.end_exclusive)
             print(json.dumps(result, indent=2))
+            return 0
+        if args.command == "stress":
+            snap_dir = Path(args.snapshot)
+            frame, provider = load_snapshot(snap_dir)
+            stress_out = run_stress_search(
+                frame,
+                models=DEFAULT_STRESS_MODELS,
+                min_train=args.min_train,
+                window=args.window,
+                step=args.step,
+            )
+            manifest = write_stress_report(
+                stress_out,
+                Path(args.output),
+                dataset_sha256=provider["normalized_sha256"],
+            )
+            print(json.dumps({"output": str(args.output), "manifest": manifest}, indent=2))
             return 0
         if args.command == "forecast":
             snap_dir = Path(args.snapshot)
