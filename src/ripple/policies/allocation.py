@@ -138,7 +138,12 @@ def allocate_from_forecasts(
                 fallback_forecasts,
                 decision_session=decision_session,
                 decision_cutoff_utc=cutoff,
+                expected_model_id="rolling21",
             )
+            primary_hashes = {f.data_sha256 for f in aligned.values()}
+            fb_data_hashes = {f.data_sha256 for f in fb_aligned.values()}
+            if primary_hashes and fb_data_hashes and primary_hashes != fb_data_hashes:
+                raise ValueError("Fallback forecasts have inconsistent data_sha256")
             fb_ok = all(
                 sym in fb_aligned
                 and fb_aligned[sym].status == "ok"

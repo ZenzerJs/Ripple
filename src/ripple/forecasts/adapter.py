@@ -165,6 +165,11 @@ def align_asset_forecasts(
     data_hashes = {f.data_sha256 for f in aligned.values()}
     if len(data_hashes) > 1:
         raise ValueError("Forecasts in a single decision slice have inconsistent data_sha256")
+    config_hashes = {f.model_config_sha256 for f in aligned.values()}
+    if len(config_hashes) > 1:
+        raise ValueError(
+            "Forecasts in a single decision slice have inconsistent model_config_sha256"
+        )
     return aligned
 
 
