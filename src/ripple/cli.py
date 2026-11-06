@@ -181,7 +181,48 @@ def main():
                 summary = verify_ledger(ledger_path)
                 print(json.dumps(summary, indent=2))
                 return 0
-            records, _, f_manifest = load_forecast_bundle(Path(args.forecasts))
+            now_dt = datetime.now(timezone.utc)
+            now_iso = now_dt.isoformat()
+            ledger = ForwardDecisionLedger(ledger_path)
+            try:
+                commit_sha = subprocess.run(
+                    ["git", "rev-parse", "--verify", "HEAD"],
+                    cwd=ROOT,
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                ).stdout.strip()
+            except (OSError, subprocess.CalledProcessError):
+                commit_sha = None
+            forecasts_dir = Path(args.forecasts)
+            if not (forecasts_dir / "manifest.json").exists():
+                sched_date = now_dt.strftime("%Y-%m-%d")
+                sched_iso = f"{sched_date}T21:00:00+00:00"
+                missed = ledger.append_event(
+                    run_id=f"fwd-{sched_date}-{args.model}-missed",
+                    event_type="run_missed",
+                    scheduled_utc=sched_iso,
+                    recorded_utc=now_iso,
+                    observation_cutoff_utc=sched_iso,
+                    strategy_id=f"forecast_{args.model}",
+                    model_id=args.model,
+                    config_sha256="unavailable",
+                    dataset_sha256="unavailable",
+                    code_commit_sha=commit_sha,
+                    status="missed",
+                    error_reason="forecast_bundle_missing_at_scheduled_cutoff",
+                )
+                print(
+                    json.dumps(
+                        {
+                            "missed_record": missed.to_dict(),
+                            "verification": verify_ledger(ledger_path),
+                        },
+                        indent=2,
+                    )
+                )
+                return 0
+            records, _, f_manifest = load_forecast_bundle(forecasts_dir)
             model_records = [r for r in records if r.model_id == args.model]
             if not model_records:
                 raise ValueError(f"No forecasts found for model {args.model}")
@@ -194,19 +235,7 @@ def main():
                 decision_cutoff_utc=cutoff_utc,
                 expected_model_id=args.model,
             )
-            now_iso = datetime.now(timezone.utc).isoformat()
             run_id = f"fwd-{latest_session}-{args.model}"
-            ledger = ForwardDecisionLedger(ledger_path)
-            try:
-                commit_sha = subprocess.run(
-                    ["git", "rev-parse", "--verify", "HEAD"],
-                    cwd=ROOT,
-                    capture_output=True,
-                    text=True,
-                    check=True,
-                ).stdout.strip()
-            except (OSError, subprocess.CalledProcessError):
-                commit_sha = None
             common_kw = {
                 "run_id": run_id,
                 "scheduled_utc": cutoff_utc.isoformat(),

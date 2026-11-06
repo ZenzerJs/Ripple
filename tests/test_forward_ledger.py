@@ -216,3 +216,32 @@ def test_missed_run_logging_pending_decisions_and_tamper_detection(tmp_path: Pat
     missing_key_path.write_text('{"sequence_no": 1}\n', encoding="utf-8")
     with pytest.raises(ValueError, match="Malformed or truncated ledger record"):
         verify_ledger(missing_key_path)
+
+
+def test_cli_ledger_commit_latest_logs_missed_when_forecasts_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from ripple.cli import main
+
+    ledger_path = tmp_path / "forward" / "ledger.jsonl"
+    missing_forecasts = tmp_path / "nonexistent_forecasts"
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "ripple",
+            "ledger",
+            "commit-latest",
+            "--forecasts",
+            str(missing_forecasts),
+            "--ledger",
+            str(ledger_path),
+        ],
+    )
+    rc = main()
+    assert rc == 0
+    summary = verify_ledger(ledger_path)
+    assert summary["valid"] is True
+    assert summary["record_count"] == 1
+    assert summary["status_counts"]["missed"] == 1
+    assert summary["event_counts"]["run_missed"] == 1
+

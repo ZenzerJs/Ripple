@@ -1,0 +1,30 @@
+name: Forward Decision Ledger
+
+on:
+  schedule:
+    - cron: "30 21 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  ledger:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen
+      - name: Commit latest decision or log missed run
+        run: uv run --frozen ripple ledger commit-latest
+      - name: Verify hash chain integrity
+        run: uv run --frozen ripple ledger verify
+      - name: Commit and push updated ledger
+        run: |
+          if [ -n "$(git status --porcelain artifacts/forward/ledger.jsonl)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add artifacts/forward/ledger.jsonl
+            git commit -m "chore(ledger): append scheduled forward decision record"
+            git push
+          fi
