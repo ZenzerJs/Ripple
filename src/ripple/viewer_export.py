@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 from pathlib import Path
@@ -74,6 +75,7 @@ def build_leakage_audit_run(
     status: str = "verified",
     run_id_suffix: str | None = None,
     force_zero_diff: bool = False,
+    fixture_states: bool = False,
 ) -> dict[str, Any]:
     """Generate a schema v1.0 leakage_audit export comparing original vs corrected folds."""
     if status not in ("verified", "draft"):
@@ -84,7 +86,7 @@ def build_leakage_audit_run(
     monthly = _extract_monthly_series(frame, symbol)
     feature_cols = ["ret_1m", "ret_3m", "ret_6m", "vol_6m"]
     horizons = (6, 12)
-    models = ["arima", "ridge", "random_forest"]
+    models = ["ar1", "ridge", "random_forest"]
     variants = ["original", "corrected"]
     folds: list[dict[str, Any]] = []
 
@@ -155,70 +157,41 @@ def build_leakage_audit_run(
                         )
                     continue
 
+                # Same pipeline for both variants; the only difference is train_idx.
                 x_train = monthly.loc[train_idx, feature_cols].to_numpy(dtype=float)
                 y_train = target_pct.iloc[train_idx].to_numpy(dtype=float)
+                scaler = StandardScaler().fit(x_train)
+                x_train_scaled = scaler.transform(x_train)
+                x_cur_scaled = scaler.transform(x_cur.reshape(1, -1))
 
-                if variant == "original" and not force_zero_diff:
-                    # Original bug also fit scaler across train + current + leaked window
-                    scaler = StandardScaler().fit(np.vstack([x_train, x_cur.reshape(1, -1)]))
-                    x_train_scaled = scaler.transform(x_train)
-                    x_cur_scaled = scaler.transform(x_cur.reshape(1, -1))
-                    # Original models also had direct target leakage from overlapping window
-                    leak_mean = (
-                        float(np.mean([r["return_pct"] for r in leaked_rows_meta]))
-                        if leaked_rows_meta
-                        else float(y_train[-1])
-                    )
-                    leak_pull = 0.28 * leak_mean
-                else:
-                    scaler = StandardScaler().fit(x_train)
-                    x_train_scaled = scaler.transform(x_train)
-                    x_cur_scaled = scaler.transform(x_cur.reshape(1, -1))
-                    leak_pull = 0.0
-
-                ar_pred = _predict_ar1(y_train, x_train[:, 0], float(x_cur[0]))
-                ridge_model = Ridge(alpha=1.0).fit(x_train_scaled, y_train)
-                ridge_pred = float(ridge_model.predict(x_cur_scaled)[0])
                 rf_model = RandomForestRegressor(
                     n_estimators=15, max_depth=3, random_state=42
                 ).fit(x_train_scaled, y_train)
-                rf_pred = float(rf_model.predict(x_cur_scaled)[0])
-
+                ridge_pred = float(
+                    Ridge(alpha=1.0).fit(x_train_scaled, y_train).predict(x_cur_scaled)[0]
+                )
                 preds = {
-                    "arima": round(
-                        (0.72 * ar_pred + leak_pull)
-                        if (variant == "original" and not force_zero_diff)
-                        else ar_pred,
-                        4,
-                    ),
-                    "ridge": round(
-                        (0.72 * ridge_pred + leak_pull)
-                        if (variant == "original" and not force_zero_diff)
-                        else ridge_pred,
-                        4,
-                    ),
-                    "random_forest": round(
-                        (0.72 * rf_pred + leak_pull)
-                        if (variant == "original" and not force_zero_diff)
-                        else rf_pred,
-                        4,
-                    ),
+                    "ar1": round(_predict_ar1(y_train, x_train[:, 0], float(x_cur[0])), 4),
+                    "ridge": round(ridge_pred, 4),
+                    "random_forest": round(float(rf_model.predict(x_cur_scaled)[0]), 4),
                 }
 
                 for m in models:
                     fold_state = "ok"
                     reason_text = None
                     pred_val: float | None = preds[m]
-                    if status == "draft" and idx == start_eval_idx + h + 2:
+                    # UI fixture only: fixture runs inject one model_failed and one unavailable
+                    # date so the viewer can render those states. Not real failures.
+                    if fixture_states and idx == start_eval_idx + h + 2:
                         fold_state = "model_failed"
                         reason_text = (
-                            f"Failed: {m} solver covariance matrix ill-conditioned on window"
+                            "UI fixture: injected model_failed state (not a real model failure)"
                         )
                         pred_val = None
-                    elif status == "draft" and idx == start_eval_idx + h + 3:
+                    elif fixture_states and idx == start_eval_idx + h + 3:
                         fold_state = "unavailable"
                         reason_text = (
-                            "Unavailable: missing feature observation at decision cutoff"
+                            "UI fixture: injected unavailable state (no input was actually missing)"
                         )
                         pred_val = None
                     folds.append(
@@ -533,11 +506,13 @@ def export_all_viewer_runs(
     snap_path = snapshot_dir or (root / "data" / "snapshots" / "2016-2026")
     commit = _git_head_sha(root)
 
+
     if (snap_path / "raw.csv").exists():
         frame, provider = load_snapshot(snap_path)
         data_sha = provider["normalized_sha256"]
+        real_status = "verified"
     else:
-        # Deterministic offline synthetic fallback when private snapshot is absent
+        # Offline synthetic fallback: own hash, never labelled verified.
         rng = np.random.default_rng(42)
         sessions = pd.bdate_range("2016-01-04", "2026-10-30", freq="B")
         rows = []
@@ -559,41 +534,20 @@ def export_all_viewer_runs(
                     }
                 )
         frame = pd.DataFrame(rows)
-        data_sha = "6cbb93460e1241a164685d658bc5100382283cc86d74dfd7ac1af1e5211dc133"
+        data_sha = hashlib.sha256(frame.to_csv(index=False).encode("utf-8")).hexdigest()
+        real_status = "draft"
 
-    spy_run = build_leakage_audit_run(
-        frame,
-        symbol="SPY",
-        data_sha256=data_sha,
-        repo_commit=commit,
-        status="verified",
-        run_id_suffix="spy-2016-2026",
-    )
-    ief_run = build_leakage_audit_run(
-        frame,
-        symbol="IEF",
-        data_sha256=data_sha,
-        repo_commit=commit,
-        status="verified",
-        run_id_suffix="ief-2016-2026",
-    )
-    gld_draft = build_leakage_audit_run(
-        frame,
-        symbol="GLD",
-        data_sha256=data_sha,
-        repo_commit=commit,
-        status="draft",
-        run_id_suffix="gld-draft",
-    )
-    vnq_flat = build_leakage_audit_run(
-        frame,
-        symbol="VNQ",
-        data_sha256=data_sha,
-        repo_commit=commit,
-        status="verified",
-        run_id_suffix="vnq-null-control",
-        force_zero_diff=True,
-    )
+    def audit(symbol: str, suffix: str, **kw: Any) -> dict[str, Any]:
+        return build_leakage_audit_run(
+            frame, symbol=symbol, data_sha256=data_sha, repo_commit=commit,
+            run_id_suffix=suffix, **kw,
+        )
+
+    spy_run = audit("SPY", "spy-2016-2026", status=real_status)
+    ief_run = audit("IEF", "ief-2016-2026", status=real_status)
+    gld_draft = audit("GLD", "gld-draft", status="draft", fixture_states=True)
+    # Synthetic control: both variants train on the corrected window, so diff is 0 by design.
+    vnq_flat = audit("VNQ", "vnq-null-control", status="draft", force_zero_diff=True)
     invalid_run = {
         "schema_version": SCHEMA_VERSION,
         "run_id": "invalid-provenance-fixture",
@@ -614,67 +568,44 @@ def export_all_viewer_runs(
     }
     lab_bundle = build_phase3_to_6_lab_bundle(root, repo_commit=commit)
 
-    files_to_write = {
-        "leakage-audit-spy-2016-2026.json": spy_run,
-        "leakage-audit-ief-2016-2026.json": ief_run,
-        "leakage-audit-gld-draft.json": gld_draft,
-        "leakage-audit-vnq-null-control.json": vnq_flat,
-        "invalid-provenance.json": invalid_run,
-        "ripple-phase4b-to-6-lab.json": lab_bundle,
-    }
-    for fname, payload in files_to_write.items():
-        (output_dir / fname).write_text(
-            json.dumps(payload, indent=2), encoding="utf-8"
-        )
+    entries = [
+        (spy_run, "leakage-audit-spy-2016-2026.json",
+         "SPY · Monthly Return Leakage Audit (2016–2026)", False),
+        (ief_run, "leakage-audit-ief-2016-2026.json",
+         "IEF · Treasury Monthly Leakage Audit (2016–2026)", False),
+        (vnq_flat, "leakage-audit-vnq-null-control.json",
+         "Fixture · VNQ synthetic null control (both variants use corrected window)", True),
+        (gld_draft, "leakage-audit-gld-draft.json",
+         "Fixture · GLD draft with injected failed/unavailable folds", True),
+        (invalid_run, "invalid-provenance.json",
+         "Fixture · Invalid provenance (schema rejection state)", True),
+    ]
+
+    def write(fname: str, payload: Any) -> str:
+        data = (json.dumps(payload, indent=2) + "\n").encode("utf-8")
+        (output_dir / fname).write_bytes(data)
+        return hashlib.sha256(data).hexdigest()
+
+    runs = [
+        {
+            "run_id": payload["run_id"],
+            "file": fname,
+            "label": label,
+            "ticker": payload["source"]["ticker"],
+            "status": "invalid" if payload is invalid_run else payload["status"],
+            "kind": "leakage_audit",
+            "fixture": fixture,
+            "sha256": write(fname, payload),
+        }
+        for payload, fname, label, fixture in entries
+    ]
+    write("ripple-phase4b-to-6-lab.json", lab_bundle)
 
     index_manifest = {
         "schema_version": SCHEMA_VERSION,
         "default_run_id": spy_run["run_id"],
-        "runs": [
-            {
-                "run_id": spy_run["run_id"],
-                "file": "leakage-audit-spy-2016-2026.json",
-                "label": "SPY · Monthly Return Leakage Audit (2016–2026)",
-                "ticker": "SPY",
-                "status": "verified",
-                "kind": "leakage_audit",
-            },
-            {
-                "run_id": ief_run["run_id"],
-                "file": "leakage-audit-ief-2016-2026.json",
-                "label": "IEF · Treasury Monthly Leakage Audit (2016–2026)",
-                "ticker": "IEF",
-                "status": "verified",
-                "kind": "leakage_audit",
-            },
-            {
-                "run_id": vnq_flat["run_id"],
-                "file": "leakage-audit-vnq-null-control.json",
-                "label": "VNQ · Null-Difference Control Run (Verified)",
-                "ticker": "VNQ",
-                "status": "verified",
-                "kind": "leakage_audit",
-            },
-            {
-                "run_id": gld_draft["run_id"],
-                "file": "leakage-audit-gld-draft.json",
-                "label": "GLD · Unverified Draft Audit (Draft State)",
-                "ticker": "GLD",
-                "status": "draft",
-                "kind": "leakage_audit",
-            },
-            {
-                "run_id": "invalid-provenance-fixture",
-                "file": "invalid-provenance.json",
-                "label": "Invalid Provenance Fixture (Schema Rejection State)",
-                "ticker": "SPY",
-                "status": "invalid",
-                "kind": "leakage_audit",
-            },
-        ],
+        "runs": runs,
         "lab_bundle_file": "ripple-phase4b-to-6-lab.json",
     }
-    (output_dir / "index.json").write_text(
-        json.dumps(index_manifest, indent=2), encoding="utf-8"
-    )
+    write("index.json", index_manifest)
     return index_manifest

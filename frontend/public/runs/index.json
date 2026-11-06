@@ -8,7 +8,9 @@
       "label": "SPY \u00b7 Monthly Return Leakage Audit (2016\u20132026)",
       "ticker": "SPY",
       "status": "verified",
-      "kind": "leakage_audit"
+      "kind": "leakage_audit",
+      "fixture": false,
+      "sha256": "5987f44ff2ded92f5a144d349f1752ff64de4f94cf63c6272e52bca8b95c6972"
     },
     {
       "run_id": "leakage-audit-ief-2016-2026",
@@ -16,31 +18,39 @@
       "label": "IEF \u00b7 Treasury Monthly Leakage Audit (2016\u20132026)",
       "ticker": "IEF",
       "status": "verified",
-      "kind": "leakage_audit"
+      "kind": "leakage_audit",
+      "fixture": false,
+      "sha256": "3308e9f51260cc54d0243b57807eeab004f0eee38f6c70f70eda89a4b50fdf06"
     },
     {
       "run_id": "leakage-audit-vnq-null-control",
       "file": "leakage-audit-vnq-null-control.json",
-      "label": "VNQ \u00b7 Null-Difference Control Run (Verified)",
+      "label": "Fixture \u00b7 VNQ synthetic null control (both variants use corrected window)",
       "ticker": "VNQ",
-      "status": "verified",
-      "kind": "leakage_audit"
+      "status": "draft",
+      "kind": "leakage_audit",
+      "fixture": true,
+      "sha256": "cde99b8a1df6cb472b082d20380ff6b5261db96248a8477aee1bcb918ea415d7"
     },
     {
       "run_id": "leakage-audit-gld-draft",
       "file": "leakage-audit-gld-draft.json",
-      "label": "GLD \u00b7 Unverified Draft Audit (Draft State)",
+      "label": "Fixture \u00b7 GLD draft with injected failed/unavailable folds",
       "ticker": "GLD",
       "status": "draft",
-      "kind": "leakage_audit"
+      "kind": "leakage_audit",
+      "fixture": true,
+      "sha256": "de0c1af82db41d80d5f97ddc37a6f910c1d1dacfd4537279594c12a6c62a033f"
     },
     {
       "run_id": "invalid-provenance-fixture",
       "file": "invalid-provenance.json",
-      "label": "Invalid Provenance Fixture (Schema Rejection State)",
+      "label": "Fixture \u00b7 Invalid provenance (schema rejection state)",
       "ticker": "SPY",
       "status": "invalid",
-      "kind": "leakage_audit"
+      "kind": "leakage_audit",
+      "fixture": true,
+      "sha256": "9a94113827c20077baa4a64c7722111b72573705265f39205ef6ea33ce31fa8a"
     }
   ],
   "lab_bundle_file": "ripple-phase4b-to-6-lab.json"

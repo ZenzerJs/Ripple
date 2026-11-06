@@ -15,6 +15,7 @@ def test_export_all_viewer_runs_synthetic_fallback(tmp_path: Path) -> None:
 
     assert index["schema_version"] == "1.0"
     assert (out_dir / "index.json").exists()
+    assert all(len(r["sha256"]) == 64 and isinstance(r["fixture"], bool) for r in index["runs"])
     assert (out_dir / "leakage-audit-spy-2016-2026.json").exists()
     assert (out_dir / "leakage-audit-gld-draft.json").exists()
     assert (out_dir / "leakage-audit-vnq-null-control.json").exists()
@@ -24,11 +25,11 @@ def test_export_all_viewer_runs_synthetic_fallback(tmp_path: Path) -> None:
     spy = json.loads((out_dir / "leakage-audit-spy-2016-2026.json").read_text(encoding="utf-8"))
     assert spy["schema_version"] == "1.0"
     assert spy["kind"] == "leakage_audit"
-    assert spy["status"] == "verified"
+    assert spy["status"] == "draft"
     assert spy["source"]["repo_commit"]
     assert spy["source"]["data_sha256"]
     assert spy["variants"] == ["original", "corrected"]
-    assert spy["models"] == ["arima", "ridge", "random_forest"]
+    assert spy["models"] == ["ar1", "ridge", "random_forest"]
 
     # Check fold states include both ok and skipped_insufficient_labels for corrected
     states = {f["state"] for f in spy["folds"]}
