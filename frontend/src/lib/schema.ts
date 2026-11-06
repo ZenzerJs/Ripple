@@ -50,6 +50,8 @@ export interface AuditSummaryRow {
 
 export interface AuditSource {
   repo_commit: string;
+  exporter_sha256?: string;
+  implementation?: string;
   data_sha256: string;
   ticker: string;
   frequency: string;
@@ -241,7 +243,7 @@ const SHA256_RE = /^[0-9a-f]{64}$/i;
 
 export function verifyRunFileHash(
   entry: RunIndexEntry | undefined,
-  hashesByFile: Record<string, string>
+  hashesByFile: Record<string, string>,
 ): boolean {
   if (!entry?.sha256 || !SHA256_RE.test(entry.sha256)) {
     return false;
@@ -262,7 +264,7 @@ function isRecord(v: unknown): v is Record<string, unknown> {
  * Refuses to render any file missing schema_version, provenance hashes, or valid fold states.
  */
 export function validateLeakageAuditRun(
-  raw: unknown
+  raw: unknown,
 ): ValidationResult<LeakageAuditRun> {
   const errors: string[] = [];
   if (!isRecord(raw)) {
@@ -271,12 +273,12 @@ export function validateLeakageAuditRun(
 
   if (raw.schema_version !== "1.0") {
     errors.push(
-      `Unsupported or missing schema_version: expected "1.0", received ${JSON.stringify(raw.schema_version)}.`
+      `Unsupported or missing schema_version: expected "1.0", received ${JSON.stringify(raw.schema_version)}.`,
     );
   }
   if (raw.kind !== "leakage_audit") {
     errors.push(
-      `Invalid run kind: expected "leakage_audit", received ${JSON.stringify(raw.kind)}.`
+      `Invalid run kind: expected "leakage_audit", received ${JSON.stringify(raw.kind)}.`,
     );
   }
   if (typeof raw.run_id !== "string" || raw.run_id.trim().length === 0) {
@@ -284,7 +286,7 @@ export function validateLeakageAuditRun(
   }
   if (raw.status !== "verified" && raw.status !== "draft") {
     errors.push(
-      `Invalid run status: expected "verified" or "draft", received ${JSON.stringify(raw.status)}.`
+      `Invalid run status: expected "verified" or "draft", received ${JSON.stringify(raw.status)}.`,
     );
   }
 
@@ -298,7 +300,7 @@ export function validateLeakageAuditRun(
       src.repo_commit.trim().length < 7
     ) {
       errors.push(
-        "Provenance check failed: source.repo_commit is missing or empty."
+        "Provenance check failed: source.repo_commit is missing or empty.",
       );
     }
     if (
@@ -306,7 +308,7 @@ export function validateLeakageAuditRun(
       src.data_sha256.trim().length < 16
     ) {
       errors.push(
-        "Provenance check failed: source.data_sha256 is missing or invalid."
+        "Provenance check failed: source.data_sha256 is missing or invalid.",
       );
     }
     if (typeof src.ticker !== "string" || src.ticker.trim().length === 0) {
@@ -334,21 +336,19 @@ export function validateLeakageAuditRun(
         !DATE_RE.test(f.forecast_date)
       ) {
         errors.push(
-          `Fold at index ${i} has invalid forecast_date: ${JSON.stringify(f.forecast_date)}.`
+          `Fold at index ${i} has invalid forecast_date: ${JSON.stringify(f.forecast_date)}.`,
         );
         break;
       }
-      if (
-        !VALID_FOLD_STATES.includes(f.state as FoldState)
-      ) {
+      if (!VALID_FOLD_STATES.includes(f.state as FoldState)) {
         errors.push(
-          `Fold at ${f.forecast_date} has unrecognized state ${JSON.stringify(f.state)}.`
+          `Fold at ${f.forecast_date} has unrecognized state ${JSON.stringify(f.state)}.`,
         );
         break;
       }
       if (f.variant !== "original" && f.variant !== "corrected") {
         errors.push(
-          `Fold at ${f.forecast_date} has invalid variant ${JSON.stringify(f.variant)}.`
+          `Fold at ${f.forecast_date} has invalid variant ${JSON.stringify(f.variant)}.`,
         );
         break;
       }
@@ -360,7 +360,7 @@ export function validateLeakageAuditRun(
           !Number.isFinite(f.actual_pct)
         ) {
           errors.push(
-            `Fold at ${f.forecast_date} (${f.variant}/${f.model}) has state="ok" but non-finite prediction_pct or actual_pct.`
+            `Fold at ${f.forecast_date} (${f.variant}/${f.model}) has state="ok" but non-finite prediction_pct or actual_pct.`,
           );
           break;
         }
@@ -379,7 +379,7 @@ export function validateLeakageAuditRun(
       }
       if (s.scope !== "common_dates" && s.scope !== "all_folds") {
         errors.push(
-          `Summary row ${i} has invalid scope ${JSON.stringify(s.scope)}.`
+          `Summary row ${i} has invalid scope ${JSON.stringify(s.scope)}.`,
         );
         break;
       }
@@ -490,10 +490,10 @@ export function computeComparisonView(
   run: LeakageAuditRun,
   horizon: number,
   model: string,
-  scope: ScopeType
+  scope: ScopeType,
 ): ComparisonViewData {
   const matchingFolds = run.folds.filter(
-    (f) => f.horizon_months === horizon && f.model === model
+    (f) => f.horizon_months === horizon && f.model === model,
   );
 
   // Check if this (horizon, model) combination exists in the run
@@ -506,7 +506,10 @@ export function computeComparisonView(
           scope: "common_dates" as ScopeType,
         }
       : null;
-    const emptyPair = (metric: "mae" | "rmse", label: string): MetricComparisonPair => ({
+    const emptyPair = (
+      metric: "mae" | "rmse",
+      label: string,
+    ): MetricComparisonPair => ({
       metric,
       label,
       unit: "%",
@@ -528,7 +531,8 @@ export function computeComparisonView(
       scope,
       maePair: emptyPair("mae", "Mean Absolute Error (MAE)"),
       rmsePair: emptyPair("rmse", "Root Mean Squared Error (RMSE)"),
-      findingHeadline: "Selected comparison combination is unavailable in this run export",
+      findingHeadline:
+        "Selected comparison combination is unavailable in this run export",
       findingSubline: "Switch to a supported horizon and model combination.",
       findingState: "unsupported",
       chartSummarySentence: "No chart points available for this selection.",
@@ -593,26 +597,23 @@ export function computeComparisonView(
   });
 
   // Note: In common_dates view, we still keep non-ok rows visible in DataTable (spec rule: "A missing fold is never silently dropped; Skipped fold: Row kept, value shown as 'unavailable' with the reason in text")
-  const scopedDateRows =
-    scope === "common_dates"
-      ? allDateRows
-      : allDateRows;
+  const scopedDateRows = scope === "common_dates" ? allDateRows : allDateRows;
 
   const originalTotalOkCount = allDateRows.filter(
-    (r) => r.original_error_pct !== null
+    (r) => r.original_error_pct !== null,
   ).length;
   const correctedTotalOkCount = allDateRows.filter(
-    (r) => r.corrected_error_pct !== null
+    (r) => r.corrected_error_pct !== null,
   ).length;
   const commonDatesCount = allDateRows.filter((r) => r.is_common_ok).length;
   const droppedDatesCount = Math.max(
     0,
-    originalTotalOkCount - correctedTotalOkCount
+    originalTotalOkCount - correctedTotalOkCount,
   );
 
   const findSummary = (
     metric: "mae" | "rmse",
-    variant: VariantType
+    variant: VariantType,
   ): AuditSummaryRow | undefined =>
     run.summary.find(
       (s) =>
@@ -620,16 +621,21 @@ export function computeComparisonView(
         s.model === model &&
         s.scope === scope &&
         s.metric === metric &&
-        s.variant === variant
+        s.variant === variant,
     );
 
   const buildPair = (
     metric: "mae" | "rmse",
-    label: string
+    label: string,
   ): MetricComparisonPair => {
     const origSum = findSummary(metric, "original");
     const corrSum = findSummary(metric, "corrected");
-    if (!origSum || !corrSum || origSum.n_folds === 0 || corrSum.n_folds === 0) {
+    if (
+      !origSum ||
+      !corrSum ||
+      origSum.n_folds === 0 ||
+      corrSum.n_folds === 0
+    ) {
       return {
         metric,
         label,
@@ -640,7 +646,8 @@ export function computeComparisonView(
         originalFolds: origSum?.n_folds ?? 0,
         correctedFolds: corrSum?.n_folds ?? 0,
         droppedFoldsCount: droppedDatesCount,
-        unavailableReason: "Insufficient valid folds to compute summary metric.",
+        unavailableReason:
+          "Insufficient valid folds to compute summary metric.",
         reconciled: true,
       };
     }
@@ -708,26 +715,32 @@ export function computeComparisonView(
     const absDiffStr = Math.abs(rawDiff).toFixed(2);
 
     if (Math.abs(rawDiff) < 0.005) {
-      findingHeadline = `Corrected ${horizon}-month MAE was unchanged at ${corrStr} (${ formatModelName(model) })`;
+      findingHeadline = `Matured-label ${horizon}-month MAE was unchanged at ${corrStr} (${formatModelName(model)})`;
       findingState = "no_difference";
     } else if (rawDiff > 0) {
-      findingHeadline = `Corrected ${horizon}-month MAE increased by ${absDiffStr} percentage points`;
-      findingState = scope === "all_folds" && droppedDatesCount > 0 ? "fewer_folds" : "result";
+      findingHeadline = `Matured-label ${horizon}-month MAE increased by ${absDiffStr} percentage points`;
+      findingState =
+        scope === "all_folds" && droppedDatesCount > 0
+          ? "fewer_folds"
+          : "result";
     } else {
-      findingHeadline = `Corrected ${horizon}-month MAE decreased by ${absDiffStr} percentage points`;
-      findingState = scope === "all_folds" && droppedDatesCount > 0 ? "fewer_folds" : "result";
+      findingHeadline = `Matured-label ${horizon}-month MAE decreased by ${absDiffStr} percentage points`;
+      findingState =
+        scope === "all_folds" && droppedDatesCount > 0
+          ? "fewer_folds"
+          : "result";
     }
 
     if (scope === "common_dates") {
-      findingSubline = `${origStr} original → ${corrStr} corrected · ${commonDatesCount} common folds (${droppedDatesCount} early folds dropped by fix)`;
+      findingSubline = `${origStr} unpurged reference → ${corrStr} matured-label · ${commonDatesCount} common folds (${droppedDatesCount} additional early folds excluded by maturity rule)`;
     } else {
-      findingSubline = `${origStr} original (${maePair.originalFolds} folds) → ${corrStr} corrected (${maePair.correctedFolds} folds · ${droppedDatesCount} fewer valid forecasts)`;
+      findingSubline = `${origStr} unpurged reference (${maePair.originalFolds} folds) → ${corrStr} matured-label (${maePair.correctedFolds} folds · ${droppedDatesCount} fewer valid forecasts)`;
     }
   }
 
   const chartSummarySentence =
     maePair.originalValue !== null && maePair.correctedValue !== null
-      ? `Across ${scope === "common_dates" ? `${commonDatesCount} common forecast dates` : `${allDateRows.length} total fold dates`} for ${run.source.ticker} (${formatModelName(model)}, ${horizon}-month horizon), original MAE is ${maePair.originalValue.toFixed(2)}% and corrected MAE is ${maePair.correctedValue.toFixed(2)}%, with ${droppedDatesCount} early forecast dates skipped in the corrected series due to unmatured training labels.`
+      ? `Across ${scope === "common_dates" ? `${commonDatesCount} common forecast dates` : `${allDateRows.length} total fold dates`} for ${run.source.ticker} (${formatModelName(model)}, ${horizon}-month horizon), unpurged-reference MAE is ${maePair.originalValue.toFixed(2)}% and matured-label MAE is ${maePair.correctedValue.toFixed(2)}%, with ${droppedDatesCount} early forecast dates skipped in the corrected series due to unmatured training labels.`
       : "No valid forecast error series available for this selection.";
 
   return {

@@ -45,8 +45,8 @@ export function EvidenceDisclosure({
             Evidence provenance &amp; temporal methodology
           </h3>
           <p className="text-[14px] text-muted mt-0.5">
-            Cryptographic data hash, repository commit, decision-time cutoff rule,
-            and exclusion protocol.
+            Recorded dataset hash, base commit, decision-time rule, and
+            exclusions. Export integrity checks do not prove dataset provenance.
           </p>
         </div>
 
@@ -66,6 +66,12 @@ export function EvidenceDisclosure({
           data-testid="evidence-disclosure-content"
           className="mt-6 pt-6 border-t border-border-subtle space-y-6 ripple-enter"
         >
+          {source.exporter_sha256 && (
+            <p className="text-[13px] text-muted break-all">
+              Controlled reimplementation · exporter SHA-256:{" "}
+              <code>{source.exporter_sha256}</code>
+            </p>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="rounded-xl bg-raised/60 border border-border-subtle p-4">
               <div className="text-[12px] font-semibold uppercase tracking-wider text-muted mb-1">
@@ -83,7 +89,9 @@ export function EvidenceDisclosure({
                   data-testid="copy-data-hash"
                   onClick={() => handleCopy("data_sha256", source.data_sha256)}
                   className={`ripple-btn ripple-btn-secondary rounded-md px-2.5 py-1 text-[12px] min-h-[34px] shrink-0 ${
-                    copiedField === "data_sha256" ? "ripple-pulse-success border-ok" : ""
+                    copiedField === "data_sha256"
+                      ? "ripple-pulse-success border-ok"
+                      : ""
                   }`}
                 >
                   {copiedField === "data_sha256" ? "Copied ✓" : "Copy"}
@@ -93,7 +101,7 @@ export function EvidenceDisclosure({
 
             <div className="rounded-xl bg-raised/60 border border-border-subtle p-4">
               <div className="text-[12px] font-semibold uppercase tracking-wider text-muted mb-1">
-                Repository Commit SHA
+                Base Repository Commit SHA
               </div>
               <div className="flex items-center justify-between gap-2">
                 <code
@@ -107,7 +115,9 @@ export function EvidenceDisclosure({
                   data-testid="copy-commit-sha"
                   onClick={() => handleCopy("repo_commit", source.repo_commit)}
                   className={`ripple-btn ripple-btn-secondary rounded-md px-2.5 py-1 text-[12px] min-h-[34px] shrink-0 ${
-                    copiedField === "repo_commit" ? "ripple-pulse-success border-ok" : ""
+                    copiedField === "repo_commit"
+                      ? "ripple-pulse-success border-ok"
+                      : ""
                   }`}
                 >
                   {copiedField === "repo_commit" ? "Copied ✓" : "Copy"}
@@ -130,7 +140,9 @@ export function EvidenceDisclosure({
               </div>
             </div>
             <div className="rounded-lg border border-border-subtle p-3">
-              <div className="text-[12px] text-muted">Instrument &amp; Cadence</div>
+              <div className="text-[12px] text-muted">
+                Instrument &amp; Cadence
+              </div>
               <div className="font-mono text-[13px] font-semibold text-text mt-0.5">
                 {source.ticker} · {source.frequency}
               </div>
@@ -154,7 +166,8 @@ export function EvidenceDisclosure({
               <li>
                 <strong>Reconciliation command:</strong> Run{" "}
                 <code className="font-mono text-[12px] text-text">
-                  uv run --frozen ripple export-viewer --output frontend/public/runs
+                  uv run --frozen ripple export-viewer --output
+                  frontend/public/runs
                 </code>{" "}
                 to regenerate all viewer exports deterministically from frozen
                 snapshots.

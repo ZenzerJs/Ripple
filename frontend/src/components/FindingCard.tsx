@@ -9,7 +9,6 @@ interface FindingCardProps {
   limitations: string[];
   onExploreComparison: () => void;
   onReadMethod: () => void;
-  onOpenPhaseLab: () => void;
 }
 
 export function FindingCard({
@@ -18,7 +17,6 @@ export function FindingCard({
   limitations,
   onExploreComparison,
   onReadMethod,
-  onOpenPhaseLab,
 }: FindingCardProps) {
   const secondaryLimitation =
     limitations[1] ??
@@ -40,7 +38,8 @@ export function FindingCard({
             Primary finding
           </span>
           <span className="text-[12px] font-mono text-muted">
-            {ticker} · {formatModelName(view.model)} · {view.horizon}-month horizon (
+            {ticker} · {formatModelName(view.model)} · {view.horizon}-month
+            horizon (
             {view.scope === "common_dates" ? "common dates" : "all folds"})
           </span>
         </div>
@@ -86,9 +85,21 @@ export function FindingCard({
           data-testid="finding-limitation"
           className="text-[14px] text-muted max-w-prose border-t border-border-subtle/70 pt-4"
         >
-          Overlapping targets make errors correlated. No significance is claimed.{" "}
-          <span className="text-muted/90">{secondaryLimitation}</span>
+          Overlapping targets make errors correlated. No significance is
+          claimed.{" "}
         </p>
+
+        <p
+          data-testid="experiment-scope"
+          className="text-[14px] text-muted mt-3"
+        >
+          Controlled reimplementation, not an execution audit of ML Stock
+          Simulator. Both variants exclude the forecast row; the unpurged
+          reference retains immature prior labels.
+        </p>
+        <p className="text-[14px] text-muted mt-3">{secondaryLimitation}</p>
+
+        <p className="text-[12px] text-muted mt-2">Differences use unrounded fold errors.</p>
 
         {/* Compact MAE & RMSE summary strip so Overview follows: question -> finding -> limitation -> metrics -> chart */}
         {view.maePair.originalValue !== null &&
@@ -133,57 +144,6 @@ export function FindingCard({
               </div>
             </div>
           )}
-      </section>
-
-      {/* Contribution Card: what was built and what was corrected, in three short lines */}
-      <section
-        aria-label="Engineering contribution summary"
-        data-testid="contribution-card"
-        className="ripple-card p-6 sm:p-8"
-      >
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-          <h3 className="text-[16px] font-semibold text-text">
-            What was built and what was corrected
-          </h3>
-          <button
-            type="button"
-            data-testid="cta-open-phase-lab"
-            onClick={onOpenPhaseLab}
-            className="text-[14px] font-medium text-action hover:underline cursor-pointer"
-          >
-            Inspect Phases 3–6 Volatility &amp; Portfolio Replay Lab →
-          </button>
-        </div>
-        <ul className="space-y-2.5 text-[16px] text-text max-w-prose list-disc pl-5">
-          <li>
-            <strong>Temporal cutoff enforcement:</strong> Training rows at forecast date{" "}
-            <code className="font-mono text-[14px]">T</code> now require{" "}
-            <code className="font-mono text-[14px]">
-              latest_label_available &lt;= T
-            </code>
-            , removing the{" "}
-            <span className="tabular-nums font-medium">
-              {view.horizon} unmatured rows
-            </span>{" "}
-            that leaked future realization prices into the original fit.
-          </li>
-          <li>
-            <strong>Train-only preprocessing &amp; explicit fold states:</strong> Feature
-            scalers fit strictly inside each fold&apos;s matured window, and early dates with
-            fewer than 24 matured labels emit{" "}
-            <code className="font-mono text-[14px]">
-              skipped_insufficient_labels
-            </code>{" "}
-            instead of silently dropping or backfilling.
-          </li>
-          <li>
-            <strong>Fixed-policy portfolio &amp; stress laboratory (Phases 3–6):</strong>{" "}
-            Extends point-in-time discipline to four-ETF 5-session variance forecasts (
-            <code className="font-mono text-[14px]">SPY, IEF, GLD, VNQ</code>),{" "}
-            next-open execution with 5.0 bps costs, synchronized block-bootstrap stress
-            screening, and a hash-chained forward decision ledger.
-          </li>
-        </ul>
       </section>
     </div>
   );

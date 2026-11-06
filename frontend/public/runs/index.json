@@ -5,22 +5,22 @@
     {
       "run_id": "leakage-audit-spy-2016-2026",
       "file": "leakage-audit-spy-2016-2026.json",
-      "label": "SPY \u00b7 Monthly Return Leakage Audit (2016\u20132026)",
+      "label": "SPY \u00b7 Controlled Label-Maturity Experiment (2016\u20132026)",
       "ticker": "SPY",
       "status": "verified",
       "kind": "leakage_audit",
       "fixture": false,
-      "sha256": "44c95b689142139ee1ea0afc997b40c3795e324d54dcd5ca90438e16a674fc0d"
+      "sha256": "9d82b97f8baf0fbcef52677d08e4eed5ccc6ddb9a9169955529c10f895a91f6e"
     },
     {
       "run_id": "leakage-audit-ief-2016-2026",
       "file": "leakage-audit-ief-2016-2026.json",
-      "label": "IEF \u00b7 Treasury Monthly Leakage Audit (2016\u20132026)",
+      "label": "IEF \u00b7 Controlled Label-Maturity Experiment (2016\u20132026)",
       "ticker": "IEF",
       "status": "verified",
       "kind": "leakage_audit",
       "fixture": false,
-      "sha256": "492980ff11c2d8a29081d549cf28059f4e147f2f85a8d285f207fec68f0e487f"
+      "sha256": "de24d366949de5cd4543aa475813d8661dcdc0d600d34c43d7e32ab4a9ba613b"
     },
     {
       "run_id": "leakage-audit-vnq-null-control",
@@ -30,7 +30,7 @@
       "status": "draft",
       "kind": "leakage_audit",
       "fixture": true,
-      "sha256": "90493f3015f59277bd9018e2146e3dc74c96948542645cbcac6fccce74a80784"
+      "sha256": "ff7fb6e7121645df2ac55089f2ac9beea028c181cc7468662709ba181840e4d8"
     },
     {
       "run_id": "leakage-audit-gld-draft",
@@ -40,7 +40,7 @@
       "status": "draft",
       "kind": "leakage_audit",
       "fixture": true,
-      "sha256": "4f7e34bb63b5373b71cd36735166e26303fffe8c5d3ae198f55e05c47ed41018"
+      "sha256": "ed7c232f9846bac9af2e5836816cba8c2a27d129791b39622257c31f2e208ad7"
     },
     {
       "run_id": "invalid-provenance-fixture",

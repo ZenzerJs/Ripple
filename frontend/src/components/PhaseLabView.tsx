@@ -3,556 +3,543 @@
 import React, { useState } from "react";
 import { PortfolioReplayBundle } from "@/lib/schema";
 
-interface PhaseLabViewProps {
+export type LabView = "portfolio" | "stress" | "ledger";
+export interface PhaseLabViewProps {
   bundle: PortfolioReplayBundle | null;
+  selectedStrategy?: string;
+  comparatorStrategy?: string;
+  labView?: LabView;
+  onSelectStrategy?: (value: string) => void;
+  onSelectComparator?: (value: string) => void;
+  onSelectLabView?: (value: LabView) => void;
 }
 
-export function PhaseLabView({ bundle }: PhaseLabViewProps) {
-  const [selectedStrategy, setSelectedStrategy] = useState<string>(
-    "forecast_garch11"
-  );
-  const [comparatorStrategy, setComparatorStrategy] =
-    useState<string>("equal_weight_5d");
+const money = (value: number) =>
+  `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const strategyNames: Record<string, string> = {
+  buy_and_hold: "Buy and hold",
+  equal_weight_5d: "Equal weight (5 sessions)",
+  trailing_vol21_5d: "Trailing volatility (21 sessions)",
+  forecast_persistence5: "Persistence (5 sessions)",
+  forecast_rolling21: "Rolling variance (21 sessions)",
+  forecast_garch11: "GARCH(1,1)",
+  forecast_ewma094: "EWMA (0.94)",
+  forecast_ridge: "Ridge",
+  forecast_har_ols: "HAR-style OLS",
+  forecast_random_forest: "Random forest",
+  forecast_ridge_extended: "Extended ridge",
+  persistence5: "Persistence (5 sessions)",
+  rolling21: "Rolling variance (21 sessions)",
+  garch11: "GARCH(1,1)",
+  ewma094: "EWMA (0.94)",
+  har_ols: "HAR-style OLS",
+  ridge: "Ridge",
+  random_forest: "Random forest",
+  ridge_extended: "Extended ridge",
+};
+const strategyName = (key: string) => strategyNames[key] ?? key;
+const pct = (value: number) => `${(value * 100).toFixed(2)}%`;
 
-  if (!bundle || bundle.status !== "verified") {
+export function PhaseLabView({
+  bundle,
+  selectedStrategy: selectedProp,
+  comparatorStrategy: comparatorProp,
+  labView: viewProp,
+  onSelectStrategy,
+  onSelectComparator,
+  onSelectLabView,
+}: PhaseLabViewProps) {
+  const [localStrategy, setLocalStrategy] = useState("forecast_random_forest");
+  const [localComparator, setLocalComparator] = useState("forecast_ewma094");
+  const [localView, setLocalView] = useState<LabView>("portfolio");
+  const requestedStrategy = selectedProp ?? localStrategy;
+  const requestedComparator = comparatorProp ?? localComparator;
+  const labView = viewProp ?? localView;
+  const selectStrategy = (value: string) => {
+    setLocalStrategy(value);
+    onSelectStrategy?.(value);
+  };
+  const selectComparator = (value: string) => {
+    setLocalComparator(value);
+    onSelectComparator?.(value);
+  };
+  const selectView = (value: LabView) => {
+    setLocalView(value);
+    onSelectLabView?.(value);
+  };
+
+  if (!bundle || bundle.status !== "verified")
     return (
-      <section
-        data-testid="phase-lab-unavailable"
-        className="ripple-card p-8 text-center"
-      >
-        <h2 className="text-[20px] font-bold text-text mb-2">
-          Phase 3–6 Portfolio &amp; Stress Laboratory
-        </h2>
-        <p className="text-[16px] text-muted">
-          Portfolio replay bundle is currently unavailable. Run{" "}
-          <code className="font-mono text-[14px]">
-            uv run ripple export-viewer
-          </code>{" "}
-          to export artifacts.
+      <section data-testid="phase-lab-unavailable" className="ripple-card p-8">
+        <h1 className="text-xl font-bold">Portfolio research unavailable</h1>
+        <p className="text-muted mt-2">
+          Export the viewer artifacts with{" "}
+          <code>uv run ripple export-viewer</code> to inspect the replay.
         </p>
       </section>
     );
-  }
 
+  const curveKeys = Object.keys(bundle.equity_curves).filter(
+    (key) => bundle.equity_curves[key]?.length > 0,
+  );
+  const selectedStrategy = curveKeys.includes(requestedStrategy)
+    ? requestedStrategy
+    : curveKeys.includes("forecast_random_forest")
+      ? "forecast_random_forest"
+      : (curveKeys[0] ?? "forecast_random_forest");
+  const comparatorStrategy = curveKeys.includes(requestedComparator)
+    ? requestedComparator
+    : curveKeys.includes("forecast_ewma094")
+      ? "forecast_ewma094"
+      : (curveKeys[0] ?? "forecast_ewma094");
+  const unsupportedSelection =
+    selectedStrategy !== requestedStrategy ||
+    comparatorStrategy !== requestedComparator;
+  const committedCount = bundle.forward_ledger.records.filter(
+    (record) =>
+      record.event_type === "decision_committed" && record.status === "success",
+  ).length;
+  const finalizedCount = bundle.forward_ledger.records.filter(
+    (record) =>
+      record.event_type === "outcome_finalized" && record.status === "success",
+  ).length;
   const activeCurve = bundle.equity_curves[selectedStrategy] ?? [];
   const compCurve = bundle.equity_curves[comparatorStrategy] ?? [];
-  const allEquities = [
-    ...activeCurve.map((p) => p.equity),
-    ...compCurve.map((p) => p.equity),
-    10000,
-  ];
-  const minEq = Math.floor(Math.min(...allEquities) / 1000) * 1000;
-  const maxEq = Math.ceil(Math.max(...allEquities) / 2000) * 2000;
-
-  const svgW = 860;
-  const svgH = 260;
-  const padL = 62;
-  const padR = 148;
-  const padT = 20;
-  const padB = 32;
-  const plotW = svgW - padL - padR;
-  const plotH = svgH - padT - padB;
-
-  const getX = (i: number, len: number) =>
-    len <= 1 ? padL : padL + (i / (len - 1)) * plotW;
-  const getY = (val: number) =>
-    padT + plotH - ((val - minEq) / Math.max(1, maxEq - minEq)) * plotH;
-
-  const buildPath = (pts: typeof activeCurve) =>
-    pts
+  const equities = [...activeCurve, ...compCurve].map((point) => point.equity);
+  const min = Math.floor(Math.min(...equities, 10000) / 1000) * 1000;
+  const max = Math.ceil(Math.max(...equities, 10000) / 1000) * 1000;
+  const x = (i: number, length: number) =>
+    65 + (length > 1 ? i / (length - 1) : 0) * 740;
+  const y = (value: number) =>
+    220 - ((value - min) / Math.max(1, max - min)) * 190;
+  const path = (points: typeof activeCurve) =>
+    points
       .map(
-        (p, i) =>
-          `${i === 0 ? "M" : "L"} ${getX(i, pts.length).toFixed(1)} ${getY(
-            p.equity
-          ).toFixed(1)}`
+        (point, i) =>
+          `${i ? "L" : "M"} ${x(i, points.length).toFixed(1)} ${y(point.equity).toFixed(1)}`,
       )
       .join(" ");
-
-  const activePath = buildPath(activeCurve);
-  const compPath = buildPath(compCurve);
-
-  const modelKeys = Object.keys(bundle.forecast_metrics?.models ?? {});
-  const worstStress = bundle.stress_summary?.worst_valid_scenario;
-  const failureProfiles =
-    bundle.stress_summary?.strategy_failure_profiles ?? {};
-  const auditSamples =
-    bundle.decision_audit_samples?.[selectedStrategy] ?? [];
+  const selectedMetric = bundle.portfolio_metrics.find(
+    (row) => row.strategy === selectedStrategy,
+  );
+  const comparatorMetric = bundle.portfolio_metrics.find(
+    (row) => row.strategy === comparatorStrategy,
+  );
+  const auditSamples = bundle.decision_audit_samples?.[selectedStrategy] ?? [];
+  const worst = bundle.stress_summary?.worst_valid_scenario;
+  const profiles = bundle.stress_summary?.strategy_failure_profiles ?? {};
+  const metricSummary = (row: typeof selectedMetric) =>
+    row ? (
+      <dl className="space-y-2 text-sm">
+        <div className="flex justify-between gap-4">
+          <dt>Final equity</dt>
+          <dd className="font-mono">{money(row.final_equity)}</dd>
+        </div>
+        <div className="flex justify-between gap-4">
+          <dt>Net return</dt>
+          <dd className="font-mono">{pct(row.net_return)}</dd>
+        </div>
+        <div className="flex justify-between gap-4">
+          <dt>Sharpe</dt>
+          <dd className="font-mono">{row.sharpe.toFixed(2)}</dd>
+        </div>
+        <div className="flex justify-between gap-4">
+          <dt>Max drawdown</dt>
+          <dd className="font-mono">{pct(row.max_drawdown)}</dd>
+        </div>
+        <div className="flex justify-between gap-4">
+          <dt>Trading costs</dt>
+          <dd className="font-mono">{money(row.total_costs)}</dd>
+        </div>
+      </dl>
+    ) : (
+      <p className="text-sm text-muted">
+        No metrics available for this selection.
+      </p>
+    );
 
   return (
-    <div data-testid="phase-lab-view" className="space-y-10 ripple-enter">
-      {/* Hero Question for Phase 3-6 Laboratory */}
-      <section className="relative overflow-hidden rounded-2xl border border-border-subtle p-6 sm:p-10 bg-surface">
-        <div
-          aria-hidden="true"
-          style={{ background: "var(--hero-glow)" }}
-          className="pointer-events-none absolute inset-0"
-        />
-        <div className="relative z-10 max-w-prose">
-          <div className="text-[12px] font-mono uppercase tracking-[0.08em] text-action font-semibold mb-2">
-            PHASES 3–6 · 4-ETF VARIANCE FORECASTS, FIXED-POLICY REPLAY, STRESS &amp; FORWARD LEDGER
-          </div>
-          <h1 className="font-display text-[28px] sm:text-[36px] font-medium tracking-tight text-text leading-tight mb-3">
-            Do five-session volatility forecasts improve portfolio decisions
-            after identical trading costs?
-          </h1>
-          <p className="text-[16px] text-muted">
-            Universe:{" "}
-            <strong className="font-mono text-text">
-              {bundle.source.universe.join(", ")}
-            </strong>{" "}
-            · Window:{" "}
-            <span className="font-mono tabular-nums text-text">
-              {bundle.source.window_start} to {bundle.source.window_end}
-            </span>{" "}
-            ({bundle.source.scheduled_decision_sessions} scheduled 5-session
-            decisions) · Execution:{" "}
-            <code className="font-mono text-[13px] text-text">
-              {bundle.source.execution_convention}
-            </code>{" "}
-            at {bundle.source.fee_bps.toFixed(1)} bps per-side cost and{" "}
-            {(bundle.source.max_weight * 100).toFixed(0)}% weight cap.
-          </p>
-        </div>
-      </section>
-
-      {/* Primary Finding Card for Phase 4B */}
-      <section className="ripple-card p-6 sm:p-8">
-        <div className="text-[14px] font-semibold text-action mb-2">
-          Phase 4B Empirical Finding (2019–2026 · 389 scheduled rebalances)
-        </div>
-        <h2 className="text-[22px] sm:text-[26px] font-bold text-text mb-2">
-          Inverse-volatility policies lower annualized volatility by ~260 bps
-          (8.97% vs 11.63%) and raise Sharpe (1.01 vs 0.88), while supervised ML
-          does not beat GARCH(1,1) or EWMA(0.94) after fees
-        </h2>
-        <p className="text-[16px] text-muted max-w-prose mb-4">
-          <code className="font-mono text-[14px] text-text">
-            forecast_garch11
-          </code>{" "}
-          ($19,531.43, Sharpe 1.01) and{" "}
-          <code className="font-mono text-[14px] text-text">
-            forecast_ewma094
-          </code>{" "}
-          ($19,516.36, Sharpe 1.00, lowest turnover 17.43 / $120.07 fees) lead
-          forecast-driven strategies.{" "}
-          <code className="font-mono text-[14px] text-text">
-            forecast_random_forest
-          </code>{" "}
-          incurs 3.4× the turnover of EWMA ($402.32 in transaction costs), and{" "}
-          <code className="font-mono text-[14px] text-text">
-            forecast_ridge_extended
-          </code>{" "}
-          emits 39 negative variance forecasts across 33 decision sessions,
-          triggering predeclared{" "}
-          <code className="font-mono text-[14px] text-text">skip_retain</code>{" "}
-          holds rather than silent clipping.
+    <div data-testid="phase-lab-view" className="space-y-6 ripple-enter">
+      <header className="workspace-heading">
+        <p className="text-sm font-mono uppercase text-action">
+          Research workspace
         </p>
-        <p className="text-[14px] text-muted border-t border-border-subtle pt-3">
-          Limitation: {bundle.limitations[0]}
+        <h1 className="font-display text-3xl sm:text-4xl mt-2">
+          Portfolio replay
+        </h1>
+        <p className="text-muted mt-2">
+          Follow forecast policies through allocation, execution, and stress.{" "}
+          {bundle.source.universe.join(" · ")} · {bundle.source.window_start} to{" "}
+          {bundle.source.window_end}
         </p>
-      </section>
-
-      {/* Interactive Equity Curve Comparison Chart */}
-      <section
-        aria-label="Portfolio equity replay comparison"
-        data-testid="lab-equity-chart"
-        className="ripple-card p-6 sm:p-8"
+      </header>
+      <nav
+        aria-label="Portfolio research views"
+        className="workspace-tabs flex flex-wrap gap-2"
       >
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-          <div>
-            <h3 className="text-[20px] font-bold text-text">
-              Net portfolio equity across 389 five-session decisions ($10,000
-              initial virtual cash)
-            </h3>
-            <p className="text-[13px] text-muted">
-              Select any forecast policy and baseline comparator. All strategies
-              use identical next-open fills and 5.0 bps costs.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 text-[14px]">
-            <label className="flex items-center gap-1.5">
-              <span className="text-muted text-[12px] uppercase font-semibold">
-                Policy (solid):
-              </span>
-              <select
-                data-testid="lab-select-policy"
-                value={selectedStrategy}
-                onChange={(e) => setSelectedStrategy(e.target.value)}
-                className="min-h-[38px] rounded-lg border border-action bg-surface px-2.5 py-1 font-mono text-[13px] text-text cursor-pointer"
-              >
-                {Object.keys(bundle.equity_curves).map((k) => (
-                  <option key={k} value={k}>
-                    {k}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="flex items-center gap-1.5">
-              <span className="text-muted text-[12px] uppercase font-semibold">
-                Baseline (dashed):
-              </span>
-              <select
-                data-testid="lab-select-baseline"
-                value={comparatorStrategy}
-                onChange={(e) => setComparatorStrategy(e.target.value)}
-                className="min-h-[38px] rounded-lg border border-border-strong bg-surface px-2.5 py-1 font-mono text-[13px] text-text cursor-pointer"
-              >
-                {Object.keys(bundle.equity_curves).map((k) => (
-                  <option key={k} value={k}>
-                    {k}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-        </div>
-
-        <div className="w-full overflow-x-auto">
-          <svg
-            viewBox={`0 0 ${svgW} ${svgH}`}
-            className="w-full h-auto select-none"
-            role="img"
-            aria-label={`Equity curve comparing ${selectedStrategy} against ${comparatorStrategy}`}
+        {(
+          [
+            ["portfolio", "Portfolio"],
+            ["stress", "Stress"],
+            ["ledger", "Ledger"],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            data-testid={`lab-view-${key}`}
+            type="button"
+            aria-current={labView === key ? "page" : undefined}
+            onClick={() => selectView(key)}
+            className={`min-h-[44px] px-4 rounded-lg border ${labView === key ? "border-action text-action bg-raised" : "border-border-subtle text-muted"}`}
           >
-            {[0, 0.5, 1].map((t) => {
-              const v = Math.round(minEq + t * (maxEq - minEq));
-              const y = getY(v);
-              return (
-                <g key={t}>
-                  <line
-                    x1={padL}
-                    y1={y}
-                    x2={padL + plotW}
-                    y2={y}
-                    stroke="var(--border-subtle)"
-                    strokeWidth="1"
+            {label}
+          </button>
+        ))}
+      </nav>
+      {labView === "portfolio" && (
+        <>
+          <div className="workspace-grid">
+            <section
+              aria-label="Portfolio equity replay comparison"
+              data-testid="lab-equity-chart"
+              className="ripple-card p-5 sm:p-7 min-w-0"
+            >
+              <div className="flex flex-wrap justify-between gap-4">
+                <div>
+                  <p className="text-sm font-mono text-action">
+                    NET EQUITY · {bundle.source.scheduled_decision_sessions}{" "}
+                    SCHEDULED DECISIONS
+                  </p>
+                  <h2 className="text-xl font-bold mt-1">Compare the paths</h2>
+                  <p className="text-sm text-muted mt-1">
+                    $10,000 initial virtual cash ·{" "}
+                    {bundle.source.fee_bps.toFixed(1)} bps per-side cost ·{" "}
+                    {bundle.source.execution_convention}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-4 my-5">
+                <label className="text-sm text-muted">
+                  Policy (solid)
+                  <br />
+                  <select
+                    data-testid="lab-select-policy"
+                    value={selectedStrategy}
+                    onChange={(e) => selectStrategy(e.target.value)}
+                    className="min-h-[44px] max-w-full rounded-lg border border-action bg-surface px-3 text-text font-mono"
+                  >
+                    {curveKeys.map((key) => (
+                      <option key={key} value={key}>
+                        {strategyName(key)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-sm text-muted">
+                  Comparator (dashed)
+                  <br />
+                  <select
+                    data-testid="lab-select-baseline"
+                    value={comparatorStrategy}
+                    onChange={(e) => selectComparator(e.target.value)}
+                    className="min-h-[44px] max-w-full rounded-lg border border-border-strong bg-surface px-3 text-text font-mono"
+                  >
+                    {curveKeys.map((key) => (
+                      <option key={key} value={key}>
+                        {strategyName(key)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              {unsupportedSelection && (
+                <p className="text-sm text-muted mb-3" role="status">
+                  A requested strategy is unavailable; showing the available
+                  default comparison.
+                </p>
+              )}
+              {(!activeCurve.length || !compCurve.length) && (
+                <p className="text-sm text-muted mb-3">
+                  Equity paths are unavailable.
+                </p>
+              )}
+              <div className="overflow-x-auto">
+                <svg
+                  viewBox="0 0 840 250"
+                  className="w-full min-w-[600px] h-auto"
+                  role="img"
+                  aria-label={`Net equity comparing ${strategyName(selectedStrategy)} (solid) and ${strategyName(comparatorStrategy)} (dashed)`}
+                >
+                  {[0, 0.5, 1].map((t) => {
+                    const value = min + t * (max - min);
+                    return (
+                      <g key={t}>
+                        <line
+                          x1="65"
+                          x2="805"
+                          y1={y(value)}
+                          y2={y(value)}
+                          stroke="var(--border-subtle)"
+                        />
+                        <text
+                          x="55"
+                          y={y(value) + 4}
+                          textAnchor="end"
+                          fontSize="12"
+                          fill="var(--muted)"
+                        >
+                          ${Math.round(value).toLocaleString()}
+                        </text>
+                      </g>
+                    );
+                  })}
+                  <path
+                    d={path(compCurve)}
+                    fill="none"
+                    stroke="var(--comparison)"
+                    strokeWidth="2"
+                    strokeDasharray="6 5"
                   />
+                  <path
+                    d={path(activeCurve)}
+                    fill="none"
+                    stroke="var(--action)"
+                    strokeWidth="2.75"
+                  />
+                  <text x="65" y="244" fontSize="12" fill="var(--muted)">
+                    {activeCurve[0]?.session ?? bundle.source.window_start}
+                  </text>
                   <text
-                    x={padL - 8}
-                    y={y + 4}
+                    x="805"
+                    y="244"
                     textAnchor="end"
                     fontSize="12"
                     fill="var(--muted)"
-                    className="font-mono tabular-nums"
                   >
-                    ${v.toLocaleString()}
+                    {activeCurve[activeCurve.length - 1]?.session ??
+                      bundle.source.window_end}
                   </text>
-                </g>
-              );
-            })}
-
-            {compPath && (
-              <path
-                d={compPath}
-                fill="none"
-                stroke="var(--comparison)"
-                strokeWidth="2"
-                strokeDasharray="6 5"
-              />
-            )}
-            {activePath && (
-              <path
-                d={activePath}
-                fill="none"
-                stroke="var(--action)"
-                strokeWidth="2.75"
-              />
-            )}
-
-            {activeCurve.length > 0 && (
-              <g
-                transform={`translate(${padL + plotW + 8}, ${
-                  getY(activeCurve[activeCurve.length - 1].equity) - 11
-                })`}
-              >
-                <rect
-                  x="0"
-                  y="0"
-                  width="136"
-                  height="22"
-                  rx="5"
-                  fill="var(--action)"
-                />
-                <text
-                  x="68"
-                  y="15"
-                  textAnchor="middle"
-                  fontSize="11"
-                  fontWeight="600"
-                  fill="var(--action-fg)"
-                  className="font-mono tabular-nums"
-                >
-                  ${activeCurve[activeCurve.length - 1].equity.toLocaleString()}
-                </text>
-              </g>
-            )}
-          </svg>
-        </div>
-      </section>
-
-      {/* Phase 4B Full Strategy Portfolio Utility Table */}
-      <section
-        aria-label="Phase 4B portfolio utility table"
-        data-testid="lab-portfolio-table"
-        className="ripple-card p-6 sm:p-8"
-      >
-        <h3 className="text-[20px] font-bold text-text mb-1">
-          Phase 4B: Fixed-policy portfolio utility comparison (2019-02-13 to
-          2026-11-04)
-        </h3>
-        <p className="text-[14px] text-muted mb-4">
-          Every model maps positive daily variance forecasts{" "}
-          <code className="font-mono text-[12px]">v_i</code> to{" "}
-          <code className="font-mono text-[12px]">1 / sqrt(v_i)</code> capped at
-          40.0%. Unconstrained models emitting negative variance forecasts trigger{" "}
-          <code className="font-mono text-[12px]">skip_retain</code> and preserve
-          prior holdings.
-        </p>
-
-        <div className="overflow-x-auto rounded-xl border border-border-subtle">
-          <table className="w-full text-left text-[13px] font-mono">
-            <thead className="bg-raised border-b border-border-subtle text-[11px] uppercase text-muted">
-              <tr>
-                <th className="py-2.5 px-3 font-sans">Strategy</th>
-                <th className="py-2.5 px-3 text-right">Final Equity</th>
-                <th className="py-2.5 px-3 text-right">Net Return</th>
-                <th className="py-2.5 px-3 text-right">CAGR</th>
-                <th className="py-2.5 px-3 text-right">Ann. Vol</th>
-                <th className="py-2.5 px-3 text-right">Sharpe</th>
-                <th className="py-2.5 px-3 text-right">Max DD</th>
-                <th className="py-2.5 px-3 text-right">Turnover</th>
-                <th className="py-2.5 px-3 text-right">Costs</th>
-                <th className="py-2.5 px-3 text-right">Rebalances</th>
-                <th className="py-2.5 px-3 text-right">Skipped</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border-subtle">
-              {bundle.portfolio_metrics.map((row) => {
-                const isSelected = row.strategy === selectedStrategy;
-                return (
-                  <tr
-                    key={row.strategy}
-                    onClick={() =>
-                      bundle.equity_curves[row.strategy] &&
-                      setSelectedStrategy(row.strategy)
-                    }
-                    className={`cursor-pointer transition-colors ${
-                      isSelected ? "bg-raised font-semibold" : "hover:bg-raised/50"
-                    }`}
-                  >
-                    <td className="py-2.5 px-3 text-text">{row.strategy}</td>
-                    <td className="py-2.5 px-3 text-right text-text">
-                      ${row.final_equity.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </td>
-                    <td className="py-2.5 px-3 text-right text-text">
-                      {(row.net_return * 100).toFixed(2)}%
-                    </td>
-                    <td className="py-2.5 px-3 text-right text-text">
-                      {(row.cagr * 100).toFixed(2)}%
-                    </td>
-                    <td className="py-2.5 px-3 text-right text-text">
-                      {(row.annualized_volatility * 100).toFixed(2)}%
-                    </td>
-                    <td className="py-2.5 px-3 text-right text-text">
-                      {row.sharpe.toFixed(2)}
-                    </td>
-                    <td className="py-2.5 px-3 text-right text-text">
-                      {(row.max_drawdown * 100).toFixed(2)}%
-                    </td>
-                    <td className="py-2.5 px-3 text-right text-muted">
-                      {row.turnover.toFixed(2)}×
-                    </td>
-                    <td className="py-2.5 px-3 text-right text-muted">
-                      ${row.total_costs.toFixed(2)}
-                    </td>
-                    <td className="py-2.5 px-3 text-right text-text">
-                      {row.rebalance_count}
-                    </td>
-                    <td className="py-2.5 px-3 text-right">
-                      {row.skipped_decisions > 0 ? (
-                        <span className="rounded-full bg-warn-tint border border-warn px-2 py-0.5 text-[11px] font-semibold text-text">
-                          {row.skipped_decisions} skipped
-                        </span>
-                      ) : (
-                        <span className="text-muted">0</span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {/* Phase 4A Five-Session Variance Forecast Accuracy + Decision Audit */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <section
-          aria-label="Phase 4A forecast accuracy"
-          data-testid="lab-forecast-table"
-          className="ripple-card p-6 lg:col-span-7"
-        >
-          <h3 className="text-[18px] font-bold text-text mb-1">
-            Phase 4A: Four-ETF 5-session variance forecast accuracy
-          </h3>
-          <p className="text-[13px] text-muted mb-4">
-            Units: daily squared log-return variance proxy across{" "}
-            <code className="font-mono text-[12px]">SPY, IEF, GLD, VNQ</code> (
-            {bundle.forecast_metrics.common_decision_sessions} common decision
-            sessions).
-          </p>
-          <div className="overflow-x-auto rounded-xl border border-border-subtle">
-            <table className="w-full text-left text-[12px] font-mono">
-              <thead className="bg-raised border-b border-border-subtle uppercase text-muted">
-                <tr>
-                  <th className="py-2 px-3">Model</th>
-                  <th className="py-2 px-3 text-right">OK</th>
-                  <th className="py-2 px-3 text-right">Invalid (≤0)</th>
-                  <th className="py-2 px-3 text-right">Common MAE</th>
-                  <th className="py-2 px-3 text-right">Common QLIKE</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border-subtle">
-                {modelKeys.map((m) => {
-                  const info = bundle.forecast_metrics.models[m];
-                  const invCount = info.status_counts?.invalid ?? 0;
-                  return (
-                    <tr key={m}>
-                      <td className="py-2 px-3 font-semibold text-text">{m}</td>
-                      <td className="py-2 px-3 text-right text-text">
-                        {info.status_counts?.ok ?? 0}
-                      </td>
-                      <td className="py-2 px-3 text-right">
-                        {invCount > 0 ? (
-                          <span className="rounded bg-leak-tint border border-leak px-1.5 py-0.5 text-text font-semibold">
-                            {invCount} invalid
-                          </span>
-                        ) : (
-                          <span className="text-muted">0</span>
-                        )}
-                      </td>
-                      <td className="py-2 px-3 text-right text-text">
-                        {info.common_dates_scored.mae.toFixed(8)}
-                      </td>
-                      <td className="py-2 px-3 text-right text-text">
-                        {info.common_dates_scored.qlike.toFixed(4)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        {/* Decision & Execution Timestamp Audit Sample */}
-        <section
-          aria-label="Decision timestamp audit"
-          data-testid="lab-decision-audit"
-          className="ripple-card p-6 lg:col-span-5"
-        >
-          <h3 className="text-[18px] font-bold text-text mb-1">
-            Decision vs Execution Audit ({selectedStrategy})
-          </h3>
-          <p className="text-[13px] text-muted mb-4">
-            Decisions commit after the completed bar; orders fill at the next
-            supported <code className="font-mono text-[12px]">XNYS</code> open.
-          </p>
-          <div className="max-h-[270px] overflow-auto rounded-xl border border-border-subtle divide-y divide-border-subtle text-[12px] font-mono">
-            {auditSamples.slice(0, 10).map((item, idx) => {
-              const session = String(
-                item.decision_session ?? item.session ?? idx
-              );
-              const action = String(item.action ?? "rebalance");
-              const reason = item.reason ? String(item.reason) : null;
-              return (
-                <div key={`${session}-${idx}`} className="p-3 bg-surface">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-text">
-                      Decision: {session}
-                    </span>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[11px] border ${
-                        action === "skip_retain"
-                          ? "bg-warn-tint border-warn text-text font-semibold"
-                          : "bg-ok-tint border-ok text-text"
-                      }`}
-                    >
-                      {action}
-                    </span>
+                </svg>
+              </div>
+            </section>
+            <aside className="workspace-inspector ripple-card p-5">
+              <details className="workspace-inspector-disclosure">
+                <summary className="cursor-pointer min-h-[44px] font-semibold">
+                  Comparison summary
+                </summary>
+                <div className="space-y-5">
+                  <div>
+                    <h3 className="font-mono text-sm break-all mb-2">
+                      {strategyName(selectedStrategy)} · solid
+                    </h3>
+                    {metricSummary(selectedMetric)}
                   </div>
-                  {Boolean(item.as_of_utc) && (
-                    <div className="text-muted text-[11px] mt-1">
-                      Cutoff UTC: {String(item.as_of_utc)}
-                    </div>
-                  )}
-                  {reason && (
-                    <div className="text-leak text-[11px] mt-1 font-sans">
-                      Reason: {reason}
-                    </div>
-                  )}
+                  <div>
+                    <h3 className="font-mono text-sm break-all mb-2">
+                      {strategyName(comparatorStrategy)} · dashed
+                    </h3>
+                    {metricSummary(comparatorMetric)}
+                  </div>
+                  <p className="text-sm text-muted">
+                    Results are exploratory and depend on this universe, window,
+                    and fixed policy. {bundle.limitations[0]}
+                  </p>
                 </div>
-              );
-            })}
+              </details>
+              <div className="workspace-inspector-desktop hidden">
+                <h2 className="font-semibold mb-4">Comparison summary</h2>
+                <div className="space-y-5">
+                  <div>
+                    <h3 className="font-mono text-sm break-all mb-2">
+                      {strategyName(selectedStrategy)} · solid
+                    </h3>
+                    {metricSummary(selectedMetric)}
+                  </div>
+                  <div>
+                    <h3 className="font-mono text-sm break-all mb-2">
+                      {strategyName(comparatorStrategy)} · dashed
+                    </h3>
+                    {metricSummary(comparatorMetric)}
+                  </div>
+                  <p className="text-sm text-muted">
+                    Results are exploratory and depend on this universe, window,
+                    and fixed policy. {bundle.limitations[0]}
+                  </p>
+                </div>
+              </div>
+            </aside>
           </div>
-        </section>
-      </div>
-
-      {/* Phase 5 Stress Explorer & Phase 6 Forward Decision Ledger */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <section
+            data-testid="lab-portfolio-table"
+            className="ripple-card p-5 sm:p-7"
+          >
+            <h2 className="text-xl font-bold">Portfolio utility comparison</h2>
+            <p className="text-sm text-muted my-3">
+              Positive variance forecasts are converted to inverse-volatility
+              weights, capped at {(bundle.source.max_weight * 100).toFixed(0)}%.
+              Invalid forecasts retain prior holdings.
+            </p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm font-mono">
+                <thead>
+                  <tr>
+                    {[
+                      "Strategy",
+                      "Final equity",
+                      "Net return",
+                      "CAGR",
+                      "Ann. vol",
+                      "Sharpe",
+                      "Max DD",
+                      "Turnover",
+                      "Costs",
+                      "Rebalances",
+                      "Skipped",
+                    ].map((label) => (
+                      <th key={label} className="p-2 whitespace-nowrap">
+                        {label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {bundle.portfolio_metrics.map((row) => (
+                    <tr
+                      key={row.strategy}
+                      className="border-t border-border-subtle"
+                    >
+                      <td className="p-2">
+                        <button
+                          type="button"
+                          onClick={() => selectStrategy(row.strategy)}
+                          disabled={!bundle.equity_curves[row.strategy]}
+                          className="min-h-[44px] text-left text-action disabled:text-muted"
+                        >
+                          {strategyName(row.strategy)}
+                        </button>
+                      </td>
+                      <td className="p-2">{money(row.final_equity)}</td>
+                      <td className="p-2">{pct(row.net_return)}</td>
+                      <td className="p-2">{pct(row.cagr)}</td>
+                      <td className="p-2">{pct(row.annualized_volatility)}</td>
+                      <td className="p-2">{row.sharpe.toFixed(2)}</td>
+                      <td className="p-2">{pct(row.max_drawdown)}</td>
+                      <td className="p-2">{row.turnover.toFixed(2)}×</td>
+                      <td className="p-2">{money(row.total_costs)}</td>
+                      <td className="p-2">{row.rebalance_count}</td>
+                      <td className="p-2">{row.skipped_decisions}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+          <section
+            data-testid="lab-forecast-table"
+            className="ripple-card p-5 sm:p-7"
+          >
+            <h2 className="text-xl font-bold">Forecast accuracy</h2>
+            <p className="text-sm text-muted my-3">
+              Daily squared log-return variance proxy ·{" "}
+              {bundle.forecast_metrics.common_decision_sessions} common decision
+              sessions
+            </p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm font-mono">
+                <thead>
+                  <tr>
+                    {[
+                      "Model",
+                      "OK",
+                      "Invalid (≤0)",
+                      "Common MAE",
+                      "Common QLIKE",
+                    ].map((label) => (
+                      <th className="p-2 whitespace-nowrap" key={label}>
+                        {label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(bundle.forecast_metrics.models).map(
+                    ([key, info]) => (
+                      <tr key={key} className="border-t border-border-subtle">
+                        <td className="p-2">{strategyName(key)}</td>
+                        <td className="p-2">{info.status_counts?.ok ?? 0}</td>
+                        <td className="p-2">
+                          {info.status_counts?.invalid ?? 0}
+                        </td>
+                        <td className="p-2">
+                          {info.common_dates_scored.mae.toFixed(8)}
+                        </td>
+                        <td className="p-2">
+                          {info.common_dates_scored.qlike.toFixed(4)}
+                        </td>
+                      </tr>
+                    ),
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </>
+      )}
+      {labView === "stress" && (
         <section
-          aria-label="Phase 5 stress fuzzer results"
-          data-testid="lab-stress-section"
-          className="ripple-card p-6 lg:col-span-6"
+          data-testid="lab-stress-summary"
+          className="ripple-card p-5 sm:p-7"
         >
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <h3 className="text-[18px] font-bold text-text">
-              Phase 5: Constrained block-bootstrap stress search
-            </h3>
-            <span className="rounded-full bg-ok-tint border border-ok px-2.5 py-0.5 text-[12px] font-mono text-text">
-              {bundle.stress_summary?.verdict_counts?.valid ?? 15} valid ·{" "}
-              {bundle.stress_summary?.verdict_counts?.borderline ?? 3} borderline ·{" "}
-              {bundle.stress_summary?.verdict_counts?.rejected ?? 0} rejected
-            </span>
-          </div>
-          <p className="text-[13px] text-muted mb-4">
-            Worst screened relative failure scenario:{" "}
-            <code className="font-mono text-text font-semibold">
-              {worstStress?.scenario_id ?? "search_b5_s104"}
-            </code>{" "}
-            (block length {worstStress?.block_length ?? 5}, seed{" "}
-            {worstStress?.seed ?? 104}). Failure case within this scenario
-            family, never a prediction of market returns.
+          <h2 className="text-2xl font-bold">Stress search</h2>
+          <p className="text-muted mt-2">
+            Constrained block-bootstrap scenarios are failure cases within this
+            search family, not predictions of market returns.
           </p>
-          <div className="overflow-x-auto rounded-xl border border-border-subtle">
-            <table className="w-full text-left text-[12px] font-mono">
-              <thead className="bg-raised border-b border-border-subtle uppercase text-muted">
+          <p className="text-sm mt-4">
+            Screening: {bundle.stress_summary?.verdict_counts?.valid ?? 0} valid
+            · {bundle.stress_summary?.verdict_counts?.borderline ?? 0}{" "}
+            borderline · {bundle.stress_summary?.verdict_counts?.rejected ?? 0}{" "}
+            rejected
+          </p>
+          <p className="text-sm mt-2">
+            Worst valid scenario:{" "}
+            <span className="font-mono">
+              {worst?.scenario_id ?? "Unavailable"}
+            </span>
+            {worst?.block_length != null &&
+              ` · block length ${worst.block_length}`}
+            {worst?.seed != null && ` · seed ${worst.seed}`}
+          </p>
+          <div className="overflow-x-auto mt-5">
+            <table className="w-full text-left text-sm font-mono">
+              <thead>
                 <tr>
-                  <th className="py-2 px-3">Strategy</th>
-                  <th className="py-2 px-3">Worst Valid Path</th>
-                  <th className="py-2 px-3 text-right">Worst vs EW-5d</th>
-                  <th className="py-2 px-3 text-right">Underperformed</th>
+                  {[
+                    "Strategy",
+                    "Worst valid path",
+                    "Return gap (pp)",
+                    "Underperformed",
+                  ].map((label) => (
+                    <th className="p-2 whitespace-nowrap" key={label}>
+                      {label}
+                    </th>
+                  ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border-subtle">
-                {Object.entries(failureProfiles).map(([strat, prof]) => (
-                  <tr key={strat}>
-                    <td className="py-2 px-3 text-text font-semibold">
-                      {strat}
+              <tbody>
+                {Object.entries(profiles).map(([strategy, profile]) => (
+                  <tr key={strategy} className="border-t border-border-subtle">
+                    <td className="p-2">{strategyName(strategy)}</td>
+                    <td className="p-2">{profile.worst_scenario_id}</td>
+                    <td className="p-2">
+                      {(profile.worst_relative_return_vs_ew5d * 100).toFixed(2)}{" "}
+                      pp
                     </td>
-                    <td className="py-2 px-3 text-muted">
-                      {prof.worst_scenario_id}
-                    </td>
-                    <td className="py-2 px-3 text-right text-text">
-                      {(prof.worst_relative_return_vs_ew5d * 100).toFixed(2)}%
-                    </td>
-                    <td className="py-2 px-3 text-right text-muted">
-                      {prof.underperformed_ew5d_count} /{" "}
-                      {prof.evaluated_valid_scenarios ??
-                        prof.valid_scenario_count ??
-                        15}
+                    <td className="p-2">
+                      {profile.underperformed_ew5d_count} /{" "}
+                      {profile.evaluated_valid_scenarios ??
+                        profile.valid_scenario_count ??
+                        "—"}
                     </td>
                   </tr>
                 ))}
@@ -560,66 +547,105 @@ export function PhaseLabView({ bundle }: PhaseLabViewProps) {
             </table>
           </div>
         </section>
-
-        <section
-          aria-label="Phase 6 prospective forward ledger"
-          data-testid="lab-forward-ledger"
-          className="ripple-card p-6 lg:col-span-6"
-        >
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <h3 className="text-[18px] font-bold text-text">
-              Phase 6: Prospective hash-chained forward ledger
-            </h3>
-            <span className="rounded-full bg-ok-tint border border-ok px-2.5 py-0.5 text-[12px] font-mono text-text">
-              {bundle.forward_ledger.verification.valid
-                ? `Chain Verified (${bundle.forward_ledger.verification.record_count} events)`
-                : "Unverified"}
-            </span>
-          </div>
-          <p className="text-[13px] text-muted mb-4">
-            Append-only JSONL ledger enforcing{" "}
-            <code className="font-mono text-[12px]">
-              run_scheduled → data_snapshot_ready → prediction_generated →
-              decision_committed
-            </code>{" "}
-            before any realized outcome is appended.
-          </p>
-          <div className="max-h-[240px] overflow-auto rounded-xl border border-border-subtle divide-y divide-border-subtle text-[12px] font-mono">
-            {bundle.forward_ledger.records.map((rec) => (
-              <div key={rec.sequence_no} className="p-3 bg-surface">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-text">
-                    #{rec.sequence_no} · {rec.event_type} ({rec.model_id})
-                  </span>
-                  <span
-                    className={`font-semibold ${
-                      rec.status === "success"
-                        ? "text-ok"
-                        : rec.status === "failed"
-                        ? "text-leak"
-                        : "text-warn"
-                    }`}
+      )}
+      {labView === "ledger" && (
+        <div data-testid="lab-ledger-section" className="space-y-6">
+          <section
+            data-testid="lab-decision-audit"
+            className="ripple-card p-5 sm:p-7"
+          >
+            <h2 className="text-2xl font-bold">
+              Decision audit · {strategyName(selectedStrategy)}
+            </h2>
+            <p className="text-muted mt-2">
+              These historical decision samples demonstrate the audit: decisions
+              commit after the completed bar and orders fill at the next
+              supported XNYS open.
+            </p>
+            <div className="mt-4 space-y-2">
+              {auditSamples.length ? (
+                auditSamples.slice(0, 10).map((item, index) => (
+                  <div
+                    key={index}
+                    className="border-t border-border-subtle pt-3 text-sm"
                   >
-                    {rec.status}
-                  </span>
-                </div>
-                <div className="text-[11px] text-muted mt-1 break-all">
-                  record_hash: {rec.record_hash.slice(0, 28)}… (prev:{" "}
-                  {rec.prev_record_hash.slice(0, 12)}…)
-                </div>
-                {rec.proposed_weights && (
-                  <div className="text-[11px] text-text mt-1">
-                    Proposed weights:{" "}
-                    {Object.entries(rec.proposed_weights)
-                      .map(([k, v]) => `${k} ${(v * 100).toFixed(1)}%`)
-                      .join(" · ")}
+                    <span className="font-mono">
+                      Decision:{" "}
+                      {String(
+                        item.decision_session ?? item.session ?? "Unavailable",
+                      )}{" "}
+                      · {String(item.action ?? "Unavailable")}
+                    </span>
+                    {item.as_of_utc != null && (
+                      <p className="text-muted">
+                        Cutoff UTC: {String(item.as_of_utc)}
+                      </p>
+                    )}
+                    {item.reason != null && (
+                      <p className="text-muted">
+                        Reason: {String(item.reason)}
+                      </p>
+                    )}
                   </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
+                ))
+              ) : (
+                <p className="text-muted">
+                  No sample decision record is available for this strategy.
+                </p>
+              )}
+            </div>
+          </section>
+          <section
+            data-testid="lab-forward-ledger"
+            className="ripple-card p-5 sm:p-7"
+          >
+            <h2 className="text-2xl font-bold">Forward ledger</h2>
+            <p className="text-muted mt-2">
+              {bundle.forward_ledger.verification.valid
+                ? `Chain consistency verified · ${bundle.forward_ledger.verification.record_count} events`
+                : "Chain consistency unverified"}{" "}
+              · {committedCount} committed decisions · {finalizedCount}{" "}
+              finalized outcomes. These historical records demonstrate the
+              workflow; chain consistency does not establish when events
+              occurred.
+            </p>
+            <div className="mt-4 space-y-3">
+              {bundle.forward_ledger.records.length ? (
+                bundle.forward_ledger.records.map((record) => (
+                  <div
+                    key={record.sequence_no}
+                    className="border-t border-border-subtle pt-3 text-sm"
+                  >
+                    <p className="font-mono">
+                      #{record.sequence_no} · {record.event_type} ·{" "}
+                      {record.model_id} · {record.status}
+                    </p>
+                    <p className="text-muted font-mono break-all">
+                      record_hash: {record.record_hash} · prev:{" "}
+                      {record.prev_record_hash}
+                    </p>
+                    {record.proposed_weights && (
+                      <p>
+                        Proposed weights:{" "}
+                        {Object.entries(record.proposed_weights)
+                          .map(
+                            ([key, value]) =>
+                              `${key} ${(value * 100).toFixed(1)}%`,
+                          )
+                          .join(" · ")}
+                      </p>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <p className="text-muted">
+                  No forward ledger records are available.
+                </p>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

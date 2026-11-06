@@ -28,15 +28,15 @@ const config: Config = {
         ring: "var(--ring)",
       },
       fontFamily: {
-        display: ["var(--font-display)", "Georgia", "serif"],
+        display: ["var(--font-display)", "sans-serif"],
         sans: ["var(--font-sans)", "system-ui", "sans-serif"],
         mono: ["var(--font-mono)", "ui-monospace", "monospace"],
       },
       borderRadius: {
-        card: "16px",
+        card: "12px",
       },
       maxWidth: {
-        container: "1120px",
+        container: "1920px",
         prose: "70ch",
       },
     },

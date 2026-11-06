@@ -143,10 +143,10 @@ export function DataTable({
                 Actual ({horizon}m %)
               </th>
               <th scope="col" className="py-3 px-4 text-right">
-                Original Pred (%)
+                Unpurged reference Pred (%)
               </th>
               <th scope="col" className="py-3 px-4 text-right">
-                Corrected Pred (%)
+                Matured-label Pred (%)
               </th>
               <th
                 scope="col"
@@ -263,7 +263,9 @@ export function DataTable({
                     </span>
                   </td>
                   <td className="py-3 px-4 text-right whitespace-nowrap text-text">
-                    {r.actual_pct !== null ? `${r.actual_pct.toFixed(2)}%` : "unavailable"}
+                    {r.actual_pct !== null
+                      ? `${r.actual_pct.toFixed(2)}%`
+                      : "unavailable"}
                   </td>
                   <td className="py-3 px-4 text-right whitespace-nowrap text-muted">
                     {r.original?.state === "ok" &&
@@ -301,8 +303,8 @@ export function DataTable({
                           badge.tone === "ok"
                             ? "bg-ok-tint border-ok text-text"
                             : badge.tone === "leak"
-                            ? "bg-leak-tint border-leak text-text"
-                            : "bg-warn-tint border-warn text-text"
+                              ? "bg-leak-tint border-leak text-text"
+                              : "bg-warn-tint border-warn text-text"
                         }`}
                       >
                         {badge.label}

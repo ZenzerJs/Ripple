@@ -8,6 +8,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+import exchange_calendars as xc
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
@@ -49,6 +50,18 @@ def _extract_monthly_series(frame: pd.DataFrame, symbol: str) -> pd.DataFrame:
     sub["ym"] = sub["dt"].dt.to_period("M")
     monthly = sub.groupby("ym", as_index=False).last()[["session", "dt", price_col]].copy()
     monthly = monthly.rename(columns={price_col: "close"}).sort_values("dt").reset_index(drop=True)
+    # A partial final month is not a completed monthly return endpoint.
+    last = pd.Timestamp(monthly["dt"].iloc[-1])
+    month_start = last.to_period("M").start_time
+    month_end = last.to_period("M").end_time.normalize()
+    cal = xc.get_calendar(
+        "XNYS", start=month_start - pd.Timedelta(7, "D"), end=month_end + pd.Timedelta(7, "D")
+    )
+    final_session = cal.sessions_in_range(month_start, month_end)[-1]
+    if last < final_session:
+        monthly = monthly.iloc[:-1].copy()
+    if monthly.empty:
+        raise ValueError("Snapshot has no completed monthly observations")
     monthly["session"] = monthly["dt"].dt.strftime("%Y-%m-%d")
     monthly["ret_1m"] = monthly["close"].pct_change(1) * 100.0
     monthly["ret_3m"] = monthly["close"].pct_change(3) * 100.0
@@ -77,7 +90,12 @@ def build_leakage_audit_run(
     force_zero_diff: bool = False,
     fixture_states: bool = False,
 ) -> dict[str, Any]:
-    """Generate a schema v1.0 leakage_audit export comparing original vs corrected folds."""
+    """Compare unpurged prior-row training with mature-label training.
+
+    This controlled reimplementation demonstrates a timing mechanism. It does not
+    execute or reproduce the predecessor simulator's features or model settings.
+    The legacy wire key ``original`` denotes the unpurged reference only.
+    """
     if status not in ("verified", "draft"):
         raise ValueError(f"Invalid status: {status}")
     if not data_sha256 or not repo_commit:
@@ -103,9 +121,10 @@ def build_leakage_audit_run(
             actual_val = round(float(target_pct.iloc[idx]), 4)
             x_cur = monthly.loc[idx, feature_cols].to_numpy(dtype=float)
 
-            # Original (leaked): uses all rows from first_valid_idx .. idx,
-            # including the h rows (idx - h + 1 .. idx) whose h-month targets mature after idx!
-            orig_indices = list(range(first_valid_idx, idx + 1))
+            # Unpurged reference: prior rows only, matching the historical bug's
+            # exclusion of the forecast row. The h-1 immature prior labels leak;
+            # the forecast's own target must never enter either training fit.
+            orig_indices = list(range(first_valid_idx, idx))
             # Corrected: uses only rows whose h-month target matured at or before idx (i + h <= idx)
             corr_indices = [i for i in range(first_valid_idx, idx) if i + h <= idx]
 
@@ -288,6 +307,8 @@ def build_leakage_audit_run(
         "status": status,
         "source": {
             "repo_commit": repo_commit,
+            "exporter_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+            "implementation": "controlled_reimplementation",
             "data_sha256": data_sha256,
             "ticker": symbol,
             "frequency": "monthly",
@@ -312,6 +333,12 @@ def build_leakage_audit_run(
             (
                 "Enforcing strict label maturity drops early forecast dates where fewer than "
                 "24 matured training labels exist."
+            ),
+            (
+                "Controlled reimplementation, not an execution audit of ML Stock Simulator. "
+                "The unpurged reference excludes the forecast row but retains immature prior "
+                "labels; its features, AR(1) model, scaling, and forest settings differ from "
+                "the predecessor. The original/corrected JSON keys are legacy identifiers."
             ),
         ],
     }
@@ -576,9 +603,9 @@ def export_all_viewer_runs(
 
     entries = [
         (spy_run, "leakage-audit-spy-2016-2026.json",
-         "SPY · Monthly Return Leakage Audit (2016–2026)", False),
+         "SPY · Controlled Label-Maturity Experiment (2016–2026)", False),
         (ief_run, "leakage-audit-ief-2016-2026.json",
-         "IEF · Treasury Monthly Leakage Audit (2016–2026)", False),
+         "IEF · Controlled Label-Maturity Experiment (2016–2026)", False),
         (vnq_flat, "leakage-audit-vnq-null-control.json",
          "Fixture · VNQ synthetic null control (both variants use corrected window)", True),
         (gld_draft, "leakage-audit-gld-draft.json",

@@ -16,8 +16,8 @@ describe("Ripple Frontend Data Contract & Reconciliation", () => {
     const raw = JSON.parse(
       fs.readFileSync(
         path.join(runsDir, "leakage-audit-spy-2016-2026.json"),
-        "utf-8"
-      )
+        "utf-8",
+      ),
     );
     const res = validateLeakageAuditRun(raw);
     expect(res.ok).toBe(true);
@@ -41,7 +41,9 @@ describe("Ripple Frontend Data Contract & Reconciliation", () => {
           expect(view.droppedDatesCount).toBeGreaterThan(0);
           // Skipped folds must be retained in allDateRows
           const skippedRows = view.allDateRows.filter(
-            (r) => r.corrected?.state === "skipped_insufficient_labels"
+            (r) =>
+              r.original?.state === "ok" &&
+              r.corrected?.state === "skipped_insufficient_labels",
           );
           expect(skippedRows.length).toBe(view.droppedDatesCount);
         }
@@ -53,8 +55,8 @@ describe("Ripple Frontend Data Contract & Reconciliation", () => {
     const raw = JSON.parse(
       fs.readFileSync(
         path.join(runsDir, "leakage-audit-vnq-null-control.json"),
-        "utf-8"
-      )
+        "utf-8",
+      ),
     );
     const res = validateLeakageAuditRun(raw);
     expect(res.ok).toBe(true);
@@ -70,8 +72,8 @@ describe("Ripple Frontend Data Contract & Reconciliation", () => {
     const raw = JSON.parse(
       fs.readFileSync(
         path.join(runsDir, "leakage-audit-gld-draft.json"),
-        "utf-8"
-      )
+        "utf-8",
+      ),
     );
     const res = validateLeakageAuditRun(raw);
     expect(res.ok).toBe(true);
@@ -81,7 +83,7 @@ describe("Ripple Frontend Data Contract & Reconciliation", () => {
     const corrStates = new Set(
       res.data.folds
         .filter((f) => f.variant === "corrected" && f.model === "ridge")
-        .map((f) => f.state)
+        .map((f) => f.state),
     );
     expect(corrStates.has("ok")).toBe(true);
     expect(corrStates.has("skipped_insufficient_labels")).toBe(true);
@@ -91,26 +93,22 @@ describe("Ripple Frontend Data Contract & Reconciliation", () => {
 
   it("rejects invalid provenance export with explicit error messages and no partial data", () => {
     const raw = JSON.parse(
-      fs.readFileSync(path.join(runsDir, "invalid-provenance.json"), "utf-8")
+      fs.readFileSync(path.join(runsDir, "invalid-provenance.json"), "utf-8"),
     );
     const res = validateLeakageAuditRun(raw);
     expect(res.ok).toBe(false);
     if (res.ok) return;
 
-    expect(
-      res.errors.some((e) => e.includes("source.repo_commit"))
-    ).toBe(true);
-    expect(
-      res.errors.some((e) => e.includes("source.data_sha256"))
-    ).toBe(true);
+    expect(res.errors.some((e) => e.includes("source.repo_commit"))).toBe(true);
+    expect(res.errors.some((e) => e.includes("source.data_sha256"))).toBe(true);
   });
 
   it("handles unsupported comparison selection and offers nearest valid selection", () => {
     const raw = JSON.parse(
       fs.readFileSync(
         path.join(runsDir, "leakage-audit-spy-2016-2026.json"),
-        "utf-8"
-      )
+        "utf-8",
+      ),
     );
     const res = validateLeakageAuditRun(raw);
     expect(res.ok).toBe(true);
@@ -124,7 +122,7 @@ describe("Ripple Frontend Data Contract & Reconciliation", () => {
 
   it("verifies run file SHA-256 hashes against index.json and rejects tampered hashes", () => {
     const index = JSON.parse(
-      fs.readFileSync(path.join(runsDir, "index.json"), "utf-8")
+      fs.readFileSync(path.join(runsDir, "index.json"), "utf-8"),
     ) as RunIndexManifest;
 
     const defaultVisible = index.runs.filter((r) => !r.fixture);
@@ -150,11 +148,10 @@ describe("Ripple Frontend Data Contract & Reconciliation", () => {
       verifyRunFileHash(spyEntry, {
         ...hashesByFile,
         [spyEntry.file]: "0".repeat(64),
-      })
+      }),
     ).toBe(false);
     expect(verifyRunFileHash({ ...spyEntry, sha256: "" }, hashesByFile)).toBe(
-      false
+      false,
     );
   });
 });
-
