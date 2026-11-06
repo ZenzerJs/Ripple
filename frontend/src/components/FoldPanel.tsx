@@ -22,7 +22,7 @@ interface TemporalBoundaryBarProps {
 /**
  * Matches the "Inspect the temporal boundary" card in the Still water & Deep water mockups:
  * Matured training data | Concentric rings around decision date | {N} leaked rows | {h}-month evaluation
- * With callout pill: "Future labels were included in the original run"
+ * With callout pill: "Immature prior labels enter the unpurged reference"
  */
 export function TemporalBoundaryCard({
   foldDate,
@@ -65,11 +65,11 @@ export function TemporalBoundaryCard({
 
       {/* Segmented Bar + Concentric Decision Point Rings */}
       <div className="relative py-4">
-        <div className="grid grid-cols-1 sm:grid-cols-12 rounded-xl overflow-hidden border border-border-subtle min-h-[48px] text-[13px] sm:text-[14px] font-medium">
+        <div className="grid grid-cols-1 lg:grid-cols-12 rounded-xl overflow-hidden border border-border-subtle min-h-[48px] text-[13px] sm:text-[14px] font-medium">
           {/* Segment 1: Matured training data */}
           <div
             style={{ backgroundColor: "var(--matured-bar)" }}
-            className="sm:col-span-6 flex items-center justify-center px-3 py-2.5 text-text text-center"
+            className="lg:col-span-6 flex items-center justify-center px-3 py-2.5 text-text text-center"
           >
             <span>
               Matured training data ({trainCount} rows ≤{" "}
@@ -84,7 +84,7 @@ export function TemporalBoundaryCard({
           <div
             data-testid="boundary-leaked-segment"
             style={{ backgroundColor: "var(--leak-tint)" }}
-            className="sm:col-span-3 flex items-center justify-center px-3 py-2.5 border-y-2 sm:border-y-0 sm:border-l-2 sm:border-r-2 border-leak text-text font-semibold text-center"
+            className="lg:col-span-3 flex items-center justify-center px-3 py-2.5 border-y-2 lg:border-y-0 lg:border-l-2 lg:border-r-2 border-leak text-text font-semibold text-center"
           >
             <span>{leakedCount} leaked rows</span>
           </div>
@@ -92,7 +92,7 @@ export function TemporalBoundaryCard({
           {/* Segment 3: Evaluation window */}
           <div
             style={{ backgroundColor: "var(--eval-bar)" }}
-            className="sm:col-span-3 flex items-center justify-center px-3 py-2.5 text-text text-center"
+            className="lg:col-span-3 flex items-center justify-center px-3 py-2.5 text-text text-center"
           >
             <span>{horizonMonths}-month evaluation</span>
           </div>
@@ -101,7 +101,7 @@ export function TemporalBoundaryCard({
         {/* Concentric rings radiating from the decision point at 50% width */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center"
+          className="pointer-events-none hidden lg:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 items-center justify-center"
         >
           <svg width="84" height="84" viewBox="0 0 84 84" fill="none">
             <circle
@@ -134,14 +134,14 @@ export function TemporalBoundaryCard({
         </div>
       </div>
 
-      {/* Callout stem & pill matching mockup: "Future labels were included in the original run" */}
+      {/* Callout stem & pill matching mockup: "Immature prior labels enter the unpurged reference" */}
       <div className="flex flex-col items-center mt-1">
         <div className="h-3 w-[1.5px] bg-leak" aria-hidden="true" />
         <div
           data-testid="boundary-leak-callout"
           className="rounded-lg border border-leak bg-leak-tint px-4 py-1.5 text-[14px] font-medium text-text text-center"
         >
-          Future labels were included in the original run
+          Immature prior labels enter the unpurged reference
         </div>
       </div>
     </section>
@@ -167,7 +167,7 @@ export function FoldPanel({
 }: FoldPanelProps) {
   const horizonFolds = run.folds.filter((f) => f.horizon_months === horizon);
   const allDates = Array.from(
-    new Set(horizonFolds.map((f) => f.forecast_date))
+    new Set(horizonFolds.map((f) => f.forecast_date)),
   ).sort();
 
   const currentIdx = Math.max(0, allDates.indexOf(selectedDate));
@@ -176,11 +176,11 @@ export function FoldPanel({
   const dateFolds = horizonFolds.filter((f) => f.forecast_date === activeDate);
   const origPrimary: AuditFold | undefined =
     dateFolds.find(
-      (f) => f.variant === "original" && f.model === selectedModel
+      (f) => f.variant === "original" && f.model === selectedModel,
     ) ?? dateFolds.find((f) => f.variant === "original");
   const corrPrimary: AuditFold | undefined =
     dateFolds.find(
-      (f) => f.variant === "corrected" && f.model === selectedModel
+      (f) => f.variant === "corrected" && f.model === selectedModel,
     ) ?? dateFolds.find((f) => f.variant === "corrected");
 
   // Find a skipped fold date and a failed/unavailable fold date for instant 1-click verification
@@ -189,25 +189,24 @@ export function FoldPanel({
       (f) =>
         f.variant === "corrected" &&
         f.model === selectedModel &&
-        f.state === "skipped_insufficient_labels"
+        f.state === "skipped_insufficient_labels",
     )?.forecast_date ?? allDates[0];
   const firstFailedDate =
     horizonFolds.find(
       (f) =>
         f.variant === "corrected" &&
         f.model === selectedModel &&
-        f.state === "model_failed"
+        f.state === "model_failed",
     )?.forecast_date ??
     horizonFolds.find(
-      (f) => f.variant === "corrected" && f.state === "model_failed"
+      (f) => f.variant === "corrected" && f.state === "model_failed",
     )?.forecast_date;
-  const firstUnavailableDate =
-    horizonFolds.find(
-      (f) =>
-        f.variant === "corrected" &&
-        f.model === selectedModel &&
-        f.state === "unavailable"
-    )?.forecast_date;
+  const firstUnavailableDate = horizonFolds.find(
+    (f) =>
+      f.variant === "corrected" &&
+      f.model === selectedModel &&
+      f.state === "unavailable",
+  )?.forecast_date;
   const representativeOkDate =
     allDates.find((d) => d.startsWith("2018-09") || d.startsWith("2020-03")) ??
     allDates[Math.min(allDates.length - 1, 10)];
@@ -236,8 +235,8 @@ export function FoldPanel({
                 badge.tone === "ok"
                   ? "bg-ok-tint border-ok text-text"
                   : badge.tone === "leak"
-                  ? "bg-leak-tint border-leak text-text"
-                  : "bg-warn-tint border-warn text-text"
+                    ? "bg-leak-tint border-leak text-text"
+                    : "bg-warn-tint border-warn text-text"
               }`}
             >
               <span
@@ -245,8 +244,8 @@ export function FoldPanel({
                   badge.tone === "ok"
                     ? "bg-ok"
                     : badge.tone === "leak"
-                    ? "bg-leak"
-                    : "bg-warn"
+                      ? "bg-leak"
+                      : "bg-warn"
                 }`}
                 aria-hidden="true"
               />
@@ -260,7 +259,8 @@ export function FoldPanel({
           >
             Forecast date:{" "}
             <strong className="font-mono text-text">{activeDate}</strong> ·
-            Decision-time rule: <strong className="text-text">{run.source.decision_time}</strong>{" "}
+            Decision-time rule:{" "}
+            <strong className="text-text">{run.source.decision_time}</strong>{" "}
             (labels must mature on or before {activeDate}).
           </p>
         </div>
@@ -271,7 +271,7 @@ export function FoldPanel({
             data-testid="fold-panel-close"
             onClick={onClose}
             aria-label="Close fold detail panel"
-            className="ripple-btn ripple-btn-secondary rounded-lg px-3 py-1.5 text-[14px] min-h-[38px]"
+            className="ripple-btn ripple-btn-secondary rounded-lg px-3 py-1.5 text-[14px] min-h-[44px]"
           >
             Close
           </button>
@@ -280,7 +280,7 @@ export function FoldPanel({
 
       {/* Fold Navigation Controls + Quick State Presets */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-raised/60 rounded-xl p-3 border border-border-subtle">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 min-w-0">
           <button
             type="button"
             data-testid="fold-prev-btn"
@@ -288,7 +288,7 @@ export function FoldPanel({
             onClick={() =>
               currentIdx > 0 && onSelectDate(allDates[currentIdx - 1])
             }
-            className="ripple-btn ripple-btn-secondary rounded-lg px-3 py-1 text-[13px] min-h-[38px] disabled:opacity-40"
+            className="ripple-btn ripple-btn-secondary rounded-lg px-3 py-1 text-[13px] min-h-[44px] disabled:opacity-40"
           >
             ← Prev fold
           </button>
@@ -300,23 +300,23 @@ export function FoldPanel({
             data-testid="fold-date-select"
             value={activeDate}
             onChange={(e) => onSelectDate(e.target.value)}
-            className="min-h-[38px] rounded-lg border border-border-strong bg-surface px-2.5 py-1 text-[13px] font-mono text-text cursor-pointer"
+            className="min-h-[44px] rounded-lg border border-border-strong bg-surface px-2.5 py-1 text-[13px] font-mono text-text cursor-pointer"
           >
             {allDates.map((d) => {
               const f = horizonFolds.find(
                 (x) =>
                   x.forecast_date === d &&
                   x.variant === "corrected" &&
-                  x.model === selectedModel
+                  x.model === selectedModel,
               );
               const tag =
                 f?.state === "ok"
                   ? "OK"
                   : f?.state === "skipped_insufficient_labels"
-                  ? "Skipped"
-                  : f?.state === "model_failed"
-                  ? "Failed"
-                  : "Unavailable";
+                    ? "Skipped"
+                    : f?.state === "model_failed"
+                      ? "Failed"
+                      : "Unavailable";
               return (
                 <option key={d} value={d}>
                   {d} ({tag})
@@ -332,7 +332,7 @@ export function FoldPanel({
               currentIdx < allDates.length - 1 &&
               onSelectDate(allDates[currentIdx + 1])
             }
-            className="ripple-btn ripple-btn-secondary rounded-lg px-3 py-1 text-[13px] min-h-[38px] disabled:opacity-40"
+            className="ripple-btn ripple-btn-secondary rounded-lg px-3 py-1 text-[13px] min-h-[44px] disabled:opacity-40"
           >
             Next fold →
           </button>
@@ -344,7 +344,7 @@ export function FoldPanel({
               type="button"
               data-testid="fold-jump-skipped"
               onClick={() => onSelectDate(firstSkippedDate)}
-              className="ripple-btn rounded-lg px-2.5 py-1 text-[12px] min-h-[36px] border border-warn bg-warn-tint text-text font-medium"
+              className="ripple-btn rounded-lg px-2.5 py-1 text-[12px] min-h-[44px] border border-warn bg-warn-tint text-text font-medium"
             >
               Inspect Skipped Fold ({firstSkippedDate})
             </button>
@@ -354,7 +354,7 @@ export function FoldPanel({
               type="button"
               data-testid="fold-jump-failed"
               onClick={() => onSelectDate(firstFailedDate)}
-              className="ripple-btn rounded-lg px-2.5 py-1 text-[12px] min-h-[36px] border border-leak bg-leak-tint text-text font-medium"
+              className="ripple-btn rounded-lg px-2.5 py-1 text-[12px] min-h-[44px] border border-leak bg-leak-tint text-text font-medium"
             >
               Inspect Failed Fold ({firstFailedDate})
             </button>
@@ -364,7 +364,7 @@ export function FoldPanel({
               type="button"
               data-testid="fold-jump-unavailable"
               onClick={() => onSelectDate(firstUnavailableDate)}
-              className="ripple-btn rounded-lg px-2.5 py-1 text-[12px] min-h-[36px] border border-warn bg-warn-tint text-text font-medium"
+              className="ripple-btn rounded-lg px-2.5 py-1 text-[12px] min-h-[44px] border border-warn bg-warn-tint text-text font-medium"
             >
               Inspect Unavailable Fold ({firstUnavailableDate})
             </button>
@@ -374,7 +374,7 @@ export function FoldPanel({
               type="button"
               data-testid="fold-jump-ok"
               onClick={() => onSelectDate(representativeOkDate)}
-              className="ripple-btn rounded-lg px-2.5 py-1 text-[12px] min-h-[36px] border border-ok bg-ok-tint text-text font-medium"
+              className="ripple-btn rounded-lg px-2.5 py-1 text-[12px] min-h-[44px] border border-ok bg-ok-tint text-text font-medium"
             >
               Inspect Matured Fold ({representativeOkDate})
             </button>
@@ -399,8 +399,8 @@ export function FoldPanel({
           </p>
           {corrPrimary.state === "skipped_insufficient_labels" && (
             <p className="text-muted mt-1">
-              At forecast date{" "}
-              <span className="font-mono">{activeDate}</span>, only{" "}
+              At forecast date <span className="font-mono">{activeDate}</span>,
+              only{" "}
               <strong className="font-mono text-text">
                 {corrPrimary.train_count}
               </strong>{" "}
@@ -412,8 +412,8 @@ export function FoldPanel({
           {corrPrimary.state === "model_failed" && (
             <p className="text-muted mt-1">
               Contract rule for{" "}
-              <code className="font-mono text-[12px]">model_failed</code>: when a
-              model solver fails on the{" "}
+              <code className="font-mono text-[12px]">model_failed</code>: when
+              a model solver fails on the{" "}
               <strong className="font-mono text-text">
                 {corrPrimary.train_count}
               </strong>{" "}
@@ -457,14 +457,14 @@ export function FoldPanel({
         latestLabelAvailable={corrPrimary?.latest_label_available ?? null}
       />
 
-      {/* Training Window Comparison: Original vs Corrected */}
+      {/* Training Window Comparison: Unpurged reference vs Matured-label */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div
           data-testid="fold-window-corrected"
           className="rounded-xl border border-border-subtle bg-raised/40 p-4"
         >
           <div className="text-[12px] font-semibold uppercase tracking-wider text-action mb-2">
-            Corrected training window (Point-in-time)
+            Matured-label training window (Point-in-time)
           </div>
           <dl className="space-y-1.5 text-[14px] font-mono">
             <div className="flex justify-between">
@@ -499,7 +499,7 @@ export function FoldPanel({
           className="rounded-xl border border-leak bg-leak-tint/40 p-4"
         >
           <div className="text-[12px] font-semibold uppercase tracking-wider text-leak mb-2">
-            Original training window (Contains look-ahead leak)
+            Unpurged reference training window (Contains look-ahead leak)
           </div>
           <dl className="space-y-1.5 text-[14px] font-mono">
             <div className="flex justify-between">
@@ -535,8 +535,8 @@ export function FoldPanel({
       {/* Leaked Rows Evidence Table (shown rather than described) */}
       <div data-testid="fold-leaked-rows-box">
         <h3 className="text-[16px] font-semibold text-text mb-1">
-          Unmatured training rows included in the original variant ({leakedRows.length}{" "}
-          leaked rows)
+          Unmatured training rows included in the original variant (
+          {leakedRows.length} leaked rows)
         </h3>
         <p className="text-[14px] text-muted mb-3">
           Each row below was included in the original training fit on{" "}
@@ -583,7 +583,9 @@ export function FoldPanel({
                       {lr.label_matured_date}
                     </td>
                     <td className="py-2 px-3 text-right text-text">
-                      {lr.return_pct > 0 ? `+${lr.return_pct.toFixed(2)}%` : `${lr.return_pct.toFixed(2)}%`}
+                      {lr.return_pct > 0
+                        ? `+${lr.return_pct.toFixed(2)}%`
+                        : `${lr.return_pct.toFixed(2)}%`}
                     </td>
                     <td className="py-2 px-3 font-sans text-[12px] font-semibold text-text">
                       <span className="inline-flex items-center gap-1.5">
@@ -638,10 +640,10 @@ export function FoldPanel({
             <tbody className="divide-y divide-border-subtle">
               {run.models.map((m) => {
                 const origF = dateFolds.find(
-                  (f) => f.model === m && f.variant === "original"
+                  (f) => f.model === m && f.variant === "original",
                 );
                 const corrF = dateFolds.find(
-                  (f) => f.model === m && f.variant === "corrected"
+                  (f) => f.model === m && f.variant === "corrected",
                 );
                 return [origF, corrF].map((f, vIdx) => {
                   if (!f) return null;

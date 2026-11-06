@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useId, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   AlignedDateRow,
   MetricComparisonPair,
@@ -42,7 +42,6 @@ export function ErrorChart({
   windowEnd,
   compact = false,
 }: ErrorChartProps) {
-  const gradId = useId().replace(/:/g, "");
   const pointRefs = useRef<Array<SVGGElement | null>>([]);
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
 
@@ -57,7 +56,8 @@ export function ErrorChart({
         className="ripple-card p-6 sm:p-8"
       >
         <h3 className="text-[20px] font-bold text-text mb-2">
-          Forecast error across {scope === "common_dates" ? "common dates" : "all folds"}
+          Forecast error across{" "}
+          {scope === "common_dates" ? "common dates" : "all folds"}
         </h3>
         <p className="text-[16px] text-muted">
           No valid forecast error points available for this selection.
@@ -69,17 +69,19 @@ export function ErrorChart({
   const allErrValues: number[] = [];
   for (const r of plotRows) {
     if (r.original_error_pct !== null) allErrValues.push(r.original_error_pct);
-    if (r.corrected_error_pct !== null) allErrValues.push(r.corrected_error_pct);
+    if (r.corrected_error_pct !== null)
+      allErrValues.push(r.corrected_error_pct);
   }
   const rawMax = allErrValues.length > 0 ? Math.max(...allErrValues) : 10;
   // Start Y-axis strictly at 0% per spec rule: "Charts start y-axes at zero for error magnitudes, show units on the axis, and use light gridlines."
-  const yMax = Math.max(8, Math.ceil(rawMax / 5) * 5);
-  const yTicks = [0, 0.25, 0.5, 0.75, 1].map((t) => Math.round(t * yMax));
+  const tickStep = Math.max(2, Math.ceil(rawMax / 20) * 5);
+  const yMax = tickStep * 4;
+  const yTicks = [0, 1, 2, 3, 4].map((t) => t * tickStep);
 
   const svgWidth = 860;
   const svgHeight = compact ? 250 : 300;
   const padLeft = 48;
-  const padRight = 152; // Room for direct series labels at right edge matching mockup
+  const padRight = 24;
   const padTop = 20;
   const padBottom = 34;
   const plotW = svgWidth - padLeft - padRight;
@@ -93,8 +95,18 @@ export function ErrorChart({
     padTop + plotH - Math.min(1, Math.max(0, val / yMax)) * plotH;
 
   // Build SVG paths that break cleanly (M) across null/failed/unavailable folds
-  const origPoints: Array<{ x: number; y: number; idx: number; row: AlignedDateRow }> = [];
-  const corrPoints: Array<{ x: number; y: number; idx: number; row: AlignedDateRow }> = [];
+  const origPoints: Array<{
+    x: number;
+    y: number;
+    idx: number;
+    row: AlignedDateRow;
+  }> = [];
+  const corrPoints: Array<{
+    x: number;
+    y: number;
+    idx: number;
+    row: AlignedDateRow;
+  }> = [];
 
   plotRows.forEach((r, idx) => {
     const x = getX(idx);
@@ -107,7 +119,7 @@ export function ErrorChart({
   });
 
   const toSegmentedPath = (
-    pts: Array<{ x: number; y: number; idx: number }>
+    pts: Array<{ x: number; y: number; idx: number }>,
   ) => {
     if (pts.length === 0) return "";
     return pts
@@ -120,32 +132,6 @@ export function ErrorChart({
 
   const origPath = toSegmentedPath(origPoints);
   const corrPath = toSegmentedPath(corrPoints);
-  // Build area path only across contiguous segments
-  const buildAreaPath = (pts: Array<{ x: number; y: number; idx: number }>) => {
-    if (pts.length < 2) return "";
-    const segments: Array<Array<{ x: number; y: number }>> = [];
-    for (const p of pts) {
-      const curSeg = segments[segments.length - 1];
-      if (!curSeg || p.idx !== (curSeg[curSeg.length - 1] as { idx?: number }).idx! + 1) {
-        segments.push([p]);
-      } else {
-        curSeg.push(p);
-      }
-    }
-    return segments
-      .filter((seg) => seg.length >= 2)
-      .map((seg) => {
-        const line = seg
-          .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`)
-          .join(" ");
-        return `${line} L ${seg[seg.length - 1].x.toFixed(1)} ${(
-          padTop + plotH
-        ).toFixed(1)} L ${seg[0].x.toFixed(1)} ${(padTop + plotH).toFixed(1)} Z`;
-      })
-      .join(" ");
-  };
-  const corrAreaPath = buildAreaPath(corrPoints);
-
   // Shaded early-fold skipped region when scope === "all_folds"
   let skippedSpanEndIdx = -1;
   if (scope === "all_folds") {
@@ -158,29 +144,13 @@ export function ErrorChart({
     }
   }
 
-  const lastOrig = origPoints[origPoints.length - 1];
-  const lastCorr = corrPoints[corrPoints.length - 1];
-
-  // Prevent direct right-edge pills from overlapping vertically
-  let corrLabelY = lastCorr ? lastCorr.y : padTop + 40;
-  let origLabelY = lastOrig ? lastOrig.y : padTop + 80;
-  if (Math.abs(corrLabelY - origLabelY) < 28) {
-    if (corrLabelY <= origLabelY) {
-      corrLabelY = Math.max(padTop + 12, origLabelY - 15);
-      origLabelY = Math.min(padTop + plotH - 12, corrLabelY + 28);
-    } else {
-      origLabelY = Math.max(padTop + 12, corrLabelY - 15);
-      corrLabelY = Math.min(padTop + plotH - 12, origLabelY + 28);
-    }
-  }
-
   const activeDate =
     hoveredDate ??
     selectedDate ??
     plotRows[Math.floor(plotRows.length / 2)]?.forecast_date ??
     plotRows[0].forecast_date;
   const plotActiveIdx = plotRows.findIndex(
-    (r) => r.forecast_date === activeDate
+    (r) => r.forecast_date === activeDate,
   );
   // Keep readout synchronized even if user selected an early skipped fold from DataTable while in common_dates mode
   const activeRow =
@@ -191,7 +161,7 @@ export function ErrorChart({
 
   const handlePointKeyDown = (
     e: React.KeyboardEvent<SVGGElement>,
-    idx: number
+    idx: number,
   ) => {
     if (e.key === "ArrowRight" || e.key === "ArrowDown") {
       e.preventDefault();
@@ -225,7 +195,10 @@ export function ErrorChart({
   const seenYears = new Set<string>();
   plotRows.forEach((r, idx) => {
     const yr = r.forecast_date.slice(0, 4);
-    if (!seenYears.has(yr) && (idx === 0 || Number(yr) % 2 === 0 || idx === plotRows.length - 1)) {
+    if (
+      !seenYears.has(yr) &&
+      (idx === 0 || Number(yr) % 2 === 0 || idx === plotRows.length - 1)
+    ) {
       seenYears.add(yr);
       yearTickIndices.push(idx);
     }
@@ -249,8 +222,8 @@ export function ErrorChart({
             {scope === "common_dates" ? "common dates" : "all folds"}
           </h3>
           <p className="text-[12px] text-muted mt-0.5">
-            Absolute error (%) · {ticker} · {formatModelName(model)} ·{" "}
-            {horizon}-month horizon
+            Absolute error (%) · {ticker} · {formatModelName(model)} · {horizon}
+            -month horizon
           </p>
         </div>
 
@@ -265,7 +238,7 @@ export function ErrorChart({
               aria-hidden="true"
             />
             <span>
-              Corrected{" "}
+              Matured-label mean MAE:{" "}
               <strong className="font-mono tabular-nums">
                 {maePair.correctedValue !== null
                   ? `${maePair.correctedValue.toFixed(2)}%`
@@ -279,7 +252,7 @@ export function ErrorChart({
               aria-hidden="true"
             />
             <span>
-              Original{" "}
+              Unpurged reference mean MAE:{" "}
               <strong className="font-mono tabular-nums text-text">
                 {maePair.originalValue !== null
                   ? `${maePair.originalValue.toFixed(2)}%`
@@ -306,20 +279,14 @@ export function ErrorChart({
       </p>
 
       {/* SVG Chart */}
-      <div className="w-full overflow-hidden">
+      <div className="w-full overflow-x-auto">
         <svg
           viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+          style={{ minWidth: 720 }}
           role="group"
           aria-label={chartSummarySentence}
           className="w-full h-auto select-none block"
         >
-          <defs>
-            <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="var(--action)" stopOpacity="0.22" />
-              <stop offset="100%" stopColor="var(--action)" stopOpacity="0.01" />
-            </linearGradient>
-          </defs>
-
           {/* Shaded pre-maturity skipped region in all_folds mode */}
           {skippedSpanEndIdx >= 0 && (
             <g data-testid="chart-skipped-region">
@@ -338,7 +305,8 @@ export function ErrorChart({
                 fill="var(--warn)"
                 className="font-mono"
               >
-                {skippedSpanEndIdx + 1} early folds skipped in corrected (&lt;24 matured labels)
+                {skippedSpanEndIdx + 1} early folds skipped in corrected (&lt;24
+                matured labels)
               </text>
             </g>
           )}
@@ -402,23 +370,19 @@ export function ErrorChart({
 
           {/* Animated chart paths inside clip reveal */}
           <g className="ripple-chart-reveal">
-            {corrAreaPath && (
-              <path d={corrAreaPath} fill={`url(#${gradId})`} />
-            )}
-
-            {/* Original series: dashed comparison colour */}
+            {/* Unpurged reference series: dashed comparison colour */}
             {origPath && (
               <path
                 d={origPath}
                 fill="none"
                 stroke="var(--comparison)"
-                strokeWidth="2"
-                strokeDasharray="6 5"
+                strokeWidth="2.5"
+                strokeDasharray="9 4"
                 data-testid="series-path-original"
               />
             )}
 
-            {/* Corrected series: solid action colour */}
+            {/* Matured-label series: solid action colour */}
             {corrPath && (
               <path
                 d={corrPath}
@@ -470,57 +434,6 @@ export function ErrorChart({
             </g>
           )}
 
-          {/* Direct right-edge series labels matching mockup */}
-          {lastCorr && (
-            <g transform={`translate(${padLeft + plotW + 10}, ${corrLabelY - 12})`}>
-              <rect
-                x="0"
-                y="0"
-                width="134"
-                height="24"
-                rx="6"
-                fill="var(--action)"
-              />
-              <text
-                x="67"
-                y="16"
-                textAnchor="middle"
-                fontSize="12"
-                fontWeight="600"
-                fill="var(--action-fg)"
-                className="font-mono tabular-nums"
-              >
-                Corrected {maePair.correctedValue?.toFixed(2)}%
-              </text>
-            </g>
-          )}
-
-          {lastOrig && (
-            <g transform={`translate(${padLeft + plotW + 10}, ${origLabelY - 12})`}>
-              <rect
-                x="0"
-                y="0"
-                width="134"
-                height="24"
-                rx="6"
-                fill="var(--raised)"
-                stroke="var(--border-strong)"
-                strokeWidth="1"
-              />
-              <text
-                x="67"
-                y="16"
-                textAnchor="middle"
-                fontSize="12"
-                fontWeight="500"
-                fill="var(--text)"
-                className="font-mono tabular-nums"
-              >
-                Original {maePair.originalValue?.toFixed(2)}%
-              </text>
-            </g>
-          )}
-
           {/* Keyboard-focusable and clickable fold points */}
           {plotRows.map((r, idx) => {
             const x = getX(idx);
@@ -528,8 +441,8 @@ export function ErrorChart({
               r.corrected_error_pct !== null
                 ? getY(r.corrected_error_pct)
                 : r.original_error_pct !== null
-                ? getY(r.original_error_pct)
-                : padTop + plotH;
+                  ? getY(r.original_error_pct)
+                  : padTop + plotH;
             const yOrig =
               r.original_error_pct !== null
                 ? getY(r.original_error_pct)
@@ -546,11 +459,11 @@ export function ErrorChart({
                 role="button"
                 tabIndex={0}
                 data-testid={`chart-point-${r.forecast_date}`}
-                aria-label={`Fold ${r.forecast_date}: Corrected error ${
+                aria-label={`Fold ${r.forecast_date}: Matured-label error ${
                   r.corrected_error_pct !== null
                     ? `${r.corrected_error_pct.toFixed(2)}%`
                     : "unavailable"
-                }, Original error ${
+                }, Unpurged reference error ${
                   r.original_error_pct !== null
                     ? `${r.original_error_pct.toFixed(2)}%`
                     : "unavailable"
@@ -625,7 +538,7 @@ export function ErrorChart({
             </strong>
           </span>
           <span>
-            Original error:{" "}
+            Unpurged reference error:{" "}
             <strong className="font-mono tabular-nums text-text">
               {activeRow.original_error_pct !== null
                 ? `${activeRow.original_error_pct.toFixed(2)}%`
@@ -633,7 +546,7 @@ export function ErrorChart({
             </strong>
           </span>
           <span>
-            Corrected error:{" "}
+            Matured-label error:{" "}
             <strong className="font-mono tabular-nums text-action">
               {activeRow.corrected_error_pct !== null
                 ? `${activeRow.corrected_error_pct.toFixed(2)}%`
@@ -645,8 +558,8 @@ export function ErrorChart({
               corrBadge.tone === "ok"
                 ? "bg-ok-tint border-ok text-text"
                 : corrBadge.tone === "leak"
-                ? "bg-leak-tint border-leak text-text"
-                : "bg-warn-tint border-warn text-text"
+                  ? "bg-leak-tint border-leak text-text"
+                  : "bg-warn-tint border-warn text-text"
             }`}
           >
             {corrBadge.label}
@@ -675,12 +588,12 @@ export function ErrorChart({
           {windowStart ?? "2016-01-29"} to {windowEnd ?? "2026-10-30"}
         </span>{" "}
         ({ticker} monthly). Baseline comparator is the{" "}
-        <strong className="text-text">original</strong> (unlagged) pipeline.
-        Overlapping {horizon}-month return targets make forecast errors serially
-        correlated, so the effective independent sample is smaller than the{" "}
-        <span className="tabular-nums">{plotRows.length}</span> fold count and no
-        statistical significance or winner is declared. Use Left/Right arrow keys
-        on any point to step across forecast dates.
+        <strong className="text-text">unpurged reference</strong> (immature
+        prior labels). Overlapping {horizon}-month return targets make forecast
+        errors serially correlated, so the effective independent sample is
+        smaller than the <span className="tabular-nums">{plotRows.length}</span>{" "}
+        fold count and no statistical significance or winner is declared. Use
+        Left/Right arrow keys on any point to step across forecast dates.
       </figcaption>
     </figure>
   );

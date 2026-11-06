@@ -52,7 +52,7 @@ export function MetricPair({ pair, scope }: MetricPairProps) {
                   className="inline-block w-3 border-b-2 border-dashed border-comparison"
                   aria-hidden="true"
                 />
-                Original
+                Unpurged reference
               </div>
               <div
                 data-testid={`metric-${pair.metric}-original`}
@@ -74,7 +74,7 @@ export function MetricPair({ pair, scope }: MetricPairProps) {
                   className="inline-block w-3 h-0.5 bg-action"
                   aria-hidden="true"
                 />
-                Corrected
+                Matured-label
               </div>
               <div
                 data-testid={`metric-${pair.metric}-corrected`}
@@ -109,8 +109,8 @@ export function MetricPair({ pair, scope }: MetricPairProps) {
                 {Math.abs(pair.deltaPp!) < 0.005
                   ? "No change"
                   : pair.deltaPp! > 0
-                  ? "Errors rose"
-                  : "Errors fell"}
+                    ? "Errors rose"
+                    : "Errors fell"}
               </div>
             </div>
           </div>
