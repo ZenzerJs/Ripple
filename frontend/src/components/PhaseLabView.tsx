@@ -130,24 +130,24 @@ export function PhaseLabView({
   const profiles = bundle.stress_summary?.strategy_failure_profiles ?? {};
   const metricSummary = (row: typeof selectedMetric) =>
     row ? (
-      <dl className="space-y-2 text-sm">
-        <div className="flex justify-between gap-4">
+      <dl className="portfolio-summary-metrics">
+        <div>
           <dt>Final equity</dt>
           <dd className="font-mono">{money(row.final_equity)}</dd>
         </div>
-        <div className="flex justify-between gap-4">
+        <div>
           <dt>Net return</dt>
           <dd className="font-mono">{pct(row.net_return)}</dd>
         </div>
-        <div className="flex justify-between gap-4">
+        <div>
           <dt>Sharpe</dt>
           <dd className="font-mono">{row.sharpe.toFixed(2)}</dd>
         </div>
-        <div className="flex justify-between gap-4">
+        <div>
           <dt>Max drawdown</dt>
           <dd className="font-mono">{pct(row.max_drawdown)}</dd>
         </div>
-        <div className="flex justify-between gap-4">
+        <div>
           <dt>Trading costs</dt>
           <dd className="font-mono">{money(row.total_costs)}</dd>
         </div>
@@ -198,7 +198,7 @@ export function PhaseLabView({
       </nav>
       {labView === "portfolio" && (
         <>
-          <div className="workspace-grid">
+          <div className="workspace-grid portfolio-analysis">
             <section
               aria-label="Portfolio equity replay comparison"
               data-testid="lab-equity-chart"
@@ -219,7 +219,7 @@ export function PhaseLabView({
                 </div>
               </div>
               <div className="flex flex-wrap gap-4 my-5">
-                <label className="text-sm text-muted">
+                <label className="text-sm text-muted min-w-0 max-w-full">
                   Policy (solid)
                   <br />
                   <select
@@ -235,7 +235,7 @@ export function PhaseLabView({
                     ))}
                   </select>
                 </label>
-                <label className="text-sm text-muted">
+                <label className="text-sm text-muted min-w-0 max-w-full">
                   Comparator (dashed)
                   <br />
                   <select
@@ -321,49 +321,56 @@ export function PhaseLabView({
                   </text>
                 </svg>
               </div>
+              <p className="portfolio-policy-note text-sm text-muted">
+                {bundle.limitations[0]}
+              </p>
             </section>
-            <aside className="workspace-inspector ripple-card p-5">
+            <aside
+              aria-label="Comparison summary"
+              data-testid="lab-comparison-summary"
+              className="portfolio-summary ripple-card"
+            >
               <details className="workspace-inspector-disclosure">
                 <summary className="cursor-pointer min-h-[44px] font-semibold">
                   Comparison summary
                 </summary>
-                <div className="space-y-5">
-                  <div>
-                    <h3 className="font-mono text-sm break-all mb-2">
+                <div>
+                  <div className="portfolio-summary-group">
+                    <h3>
                       {strategyName(selectedStrategy)} · solid
                     </h3>
                     {metricSummary(selectedMetric)}
                   </div>
-                  <div>
-                    <h3 className="font-mono text-sm break-all mb-2">
+                  <div className="portfolio-summary-group">
+                    <h3>
                       {strategyName(comparatorStrategy)} · dashed
                     </h3>
                     {metricSummary(comparatorMetric)}
                   </div>
-                  <p className="text-sm text-muted">
+                  <p className="portfolio-summary-note text-sm text-muted">
                     Results are exploratory and depend on this universe, window,
-                    and fixed policy. {bundle.limitations[0]}
+                    and fixed policy.
                   </p>
                 </div>
               </details>
               <div className="workspace-inspector-desktop hidden">
-                <h2 className="font-semibold mb-4">Comparison summary</h2>
-                <div className="space-y-5">
-                  <div>
-                    <h3 className="font-mono text-sm break-all mb-2">
+                <h2 className="font-semibold mb-6">Comparison summary</h2>
+                <div>
+                  <div className="portfolio-summary-group">
+                    <h3>
                       {strategyName(selectedStrategy)} · solid
                     </h3>
                     {metricSummary(selectedMetric)}
                   </div>
-                  <div>
-                    <h3 className="font-mono text-sm break-all mb-2">
+                  <div className="portfolio-summary-group">
+                    <h3>
                       {strategyName(comparatorStrategy)} · dashed
                     </h3>
                     {metricSummary(comparatorMetric)}
                   </div>
-                  <p className="text-sm text-muted">
+                  <p className="portfolio-summary-note text-sm text-muted">
                     Results are exploratory and depend on this universe, window,
-                    and fixed policy. {bundle.limitations[0]}
+                    and fixed policy.
                   </p>
                 </div>
               </div>
