@@ -66,7 +66,7 @@ class FrameMarket:
         # Slice before calculating returns, so no future row enters the observation.
         past = self.closes.loc[:ts]
         returns = past.pct_change(fill_method=None).dropna().tail(252)
-        available = (ts + pd.Timedelta(days=1)).tz_localize("America/New_York").tz_convert("UTC")
+        available = (ts + pd.Timedelta(1, "D")).tz_localize("America/New_York").tz_convert("UTC")
         rows = tuple(
             (date.strftime("%Y-%m-%d"), tuple(float(v) for v in row))
             for date, row in returns.iterrows()

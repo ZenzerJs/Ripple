@@ -55,7 +55,7 @@ def fetch(destination: Path, start: str, end_exclusive: str):
     completed = datetime.now(timezone.utc).isoformat()
     if raw.empty:
         raise RuntimeError("Yahoo returned no rows; check connectivity or rate limits")
-    end = (pd.Timestamp(end_exclusive) - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+    end = (pd.Timestamp(end_exclusive) - pd.Timedelta(1, "D")).strftime("%Y-%m-%d")
     normalized = normalize(raw, start, end)
     destination.mkdir(parents=True, exist_ok=False)
     raw_path, normalized_path = destination / "raw.csv", destination / "normalized.csv"

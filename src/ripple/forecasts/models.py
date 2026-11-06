@@ -76,7 +76,7 @@ def calendar_grid(
         raise ValueError("session labels must be normalized dates")
     first = pd.Timestamp(start_session) if start_session is not None else dates.iloc[0]
     last = pd.Timestamp(end_session) if end_session is not None else dates.iloc[-1]
-    cal = xc.get_calendar("XNYS", start=first, end=last + pd.Timedelta(days=10))
+    cal = xc.get_calendar("XNYS", start=first, end=last + pd.Timedelta(10, "D"))
     sessions = cal.sessions_in_range(first, last)
     if not pd.DatetimeIndex(dates).isin(sessions).all():
         raise ValueError("non-XNYS session in input")
@@ -87,7 +87,7 @@ def calendar_grid(
     if ((close <= 0) & close.notna()).any() or np.isinf(close).any():
         raise ValueError("invalid close price")
     availability = pd.Series(
-        (sessions + pd.Timedelta(days=1)).tz_localize("America/New_York").tz_convert("UTC"),
+        (sessions + pd.Timedelta(1, "D")).tz_localize("America/New_York").tz_convert("UTC"),
         index=sessions,
     )
     close = close.where(availability <= cutoff)
