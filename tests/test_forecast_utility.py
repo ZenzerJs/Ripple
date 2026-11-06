@@ -125,3 +125,24 @@ def test_end_to_end_synthetic_phase4b_comparison_and_report(tmp_path: Path):
     assert (out_dir / "manifest.json").exists()
     assert (out_dir / "equity_drawdown.png").exists()
     assert "forecast_ridge" in written["metrics"]
+
+    # Subperiod eval_start not falling immediately after a candidate session must align
+    # to the next candidate decision session without false skipped initial decisions
+    cand_sessions = sorted({f.forecast_session for f in forecasts})
+    second_cand_pos = int(dates.get_loc(pd.Timestamp(cand_sessions[1])))
+    # Pick an off-grid start session between cand_sessions[0] and cand_sessions[1]
+    off_grid_start = dates[second_cand_pos - 1].strftime("%Y-%m-%d")
+    _, sub_summary, _ = run_forecast_portfolio_comparison(
+        frame,
+        forecasts,
+        forecasts_df,
+        snapshot_start=dates[0].strftime("%Y-%m-%d"),
+        snapshot_end=dates[-1].strftime("%Y-%m-%d"),
+        eval_start=off_grid_start,
+        models=models,
+    )
+    assert sub_summary["evaluation_window"]["initial_decision_session"] == cand_sessions[1]
+    for m_name in ("forecast_rolling21", "forecast_ewma094"):
+        pm = sub_summary["portfolio_metrics"][m_name]
+        assert pm["skipped_decision_count"] == 0
+        assert pm["executed_decision_count"] == pm["scheduled_decision_count"]

@@ -156,6 +156,27 @@ def test_align_asset_forecasts_checks_four_etf_consistency():
             decision_cutoff_utc="2020-02-05T05:00:00Z",
         )
 
+    # Inconsistent model_config_sha256 across assets rejected
+    bad_cfg = [
+        classify_prediction(
+            asset="SPY",
+            model_id="ridge",
+            forecast_session="2020-02-03",
+            as_of_utc="2020-02-04T05:00:00+00:00",
+            horizon_sessions=5,
+            raw_prediction=0.00012,
+            training_last_label_at_utc="2020-02-04T05:00:00+00:00",
+            data_sha256="abc123",
+            model_config_sha256="other_cfg",
+        )
+    ] + [_make_forecast(asset=sym) for sym in SYMBOLS[1:]]
+    with pytest.raises(ValueError, match="inconsistent model_config_sha256"):
+        align_asset_forecasts(
+            bad_cfg,
+            decision_session="2020-02-03",
+            decision_cutoff_utc="2020-02-04T05:00:00Z",
+        )
+
 
 def test_frozen_forecast_bundle_roundtrip_and_tamper_rejection(tmp_path: Path):
     records = [_make_forecast(asset=sym) for sym in SYMBOLS]

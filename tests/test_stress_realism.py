@@ -141,5 +141,9 @@ def test_budgeted_stress_search_recomputes_path_features_and_writes_report(tmp_p
     assert (report_dir / "manifest.json").exists()
     assert (report_dir / "worst_failure_case" / "resampled_path.csv").exists()
     assert manifest["budget"]["total_scenarios_evaluated"] == 6
+    for prof in out["strategy_failure_profiles"].values():
+        assert prof["worst_scenario_id"].startswith("search_")
+        assert prof["search_valid_scenarios"] >= 1
+        assert prof["validation_valid_scenarios"] >= 1
     report_text = (report_dir / "stress_report.md").read_text(encoding="utf-8")
     assert "failure case within this synchronized block-bootstrap scenario family" in report_text

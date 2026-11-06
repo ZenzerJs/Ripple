@@ -191,3 +191,28 @@ def test_missed_run_logging_pending_decisions_and_tamper_detection(tmp_path: Pat
 
     with pytest.raises(ValueError, match="Tampered ledger record"):
         verify_ledger(ledger_path)
+
+    # Appending a new event onto a tampered ledger must also fail closed
+    with pytest.raises(ValueError, match="Tampered ledger record"):
+        ledger.append_event(
+            run_id="fwd-2026-11-25-garch11",
+            event_type="run_scheduled",
+            scheduled_utc="2026-11-26T05:00:00Z",
+            recorded_utc="2026-11-26T05:00:01Z",
+            observation_cutoff_utc="2026-11-26T05:00:00Z",
+            strategy_id="forecast_garch11",
+            model_id="garch11",
+            config_sha256="cfg",
+            dataset_sha256="snap_sha",
+        )
+
+    # Partial/truncated line at EOF or missing required fields must raise ValueError
+    trunc_path = tmp_path / "forward" / "truncated.jsonl"
+    trunc_path.write_text('{"sequence_no": 1, "run_id": "incomplete"\n', encoding="utf-8")
+    with pytest.raises(ValueError, match="Malformed or truncated ledger record"):
+        verify_ledger(trunc_path)
+
+    missing_key_path = tmp_path / "forward" / "missing_key.jsonl"
+    missing_key_path.write_text('{"sequence_no": 1}\n', encoding="utf-8")
+    with pytest.raises(ValueError, match="Malformed or truncated ledger record"):
+        verify_ledger(missing_key_path)

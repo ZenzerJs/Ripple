@@ -149,3 +149,52 @@ def test_invalid_inputs_rejected_by_policy():
         inverse_volatility_weights({"SPY": -0.1, "IEF": 0.1, "GLD": 0.1, "VNQ": 0.1})
     with pytest.raises(ValueError, match="finite"):
         inverse_volatility_weights({"SPY": math.nan, "IEF": 0.1, "GLD": 0.1, "VNQ": 0.1})
+
+
+def test_extreme_variance_ratios_and_fallback_integrity_checks():
+    # Extreme variance ratio (1e-12 vs 1e-6 vs 1e2) triggers multi-step water-filling cap at 40%
+    extreme_vars = {"SPY": 1e-12, "IEF": 1e-6, "GLD": 1e2, "VNQ": 1e2}
+    weights, cash_w = inverse_volatility_weights(
+        extreme_vars, max_weight=0.40, excess_rule="redistribute"
+    )
+    assert weights["SPY"] == pytest.approx(0.40)
+    assert weights["IEF"] == pytest.approx(0.40)
+    assert weights["GLD"] == pytest.approx(0.10)
+    assert weights["VNQ"] == pytest.approx(0.10)
+    assert cash_w == pytest.approx(0.0, abs=1e-12)
+
+    # Fallback forecasts with wrong model_id or mismatched data_sha256 must fail closed
+    vars_neg = {"SPY": -0.0001, "IEF": 0.0001, "GLD": 0.0001, "VNQ": 0.0001}
+    vars_ok = {"SPY": 0.0001, "IEF": 0.0001, "GLD": 0.0001, "VNQ": 0.0001}
+    wrong_model_fb = _forecast_slice(vars_ok, model_id="ewma094")
+    with pytest.raises(ValueError, match="Mismatched model_id"):
+        allocate_from_forecasts(
+            _forecast_slice(vars_neg, model_id="ridge_extended"),
+            decision_session="2020-02-03",
+            decision_cutoff_utc="2020-02-04T05:00:00Z",
+            invalid_policy="fallback_rolling21",
+            fallback_forecasts=wrong_model_fb,
+        )
+
+    bad_hash_fb = [
+        classify_prediction(
+            asset=sym,
+            model_id="rolling21",
+            forecast_session="2020-02-03",
+            as_of_utc="2020-02-04T05:00:00Z",
+            horizon_sessions=5,
+            raw_prediction=0.0001,
+            training_last_label_at_utc="2020-02-04T05:00:00Z",
+            data_sha256="different_sha",
+            model_config_sha256="sha_cfg",
+        )
+        for sym in SYMBOLS
+    ]
+    with pytest.raises(ValueError, match="inconsistent data_sha256"):
+        allocate_from_forecasts(
+            _forecast_slice(vars_neg, model_id="ridge_extended"),
+            decision_session="2020-02-03",
+            decision_cutoff_utc="2020-02-04T05:00:00Z",
+            invalid_policy="fallback_rolling21",
+            fallback_forecasts=bad_hash_fb,
+        )
