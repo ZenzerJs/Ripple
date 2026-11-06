@@ -33,6 +33,7 @@ from ripple.policies.allocation import allocate_from_forecasts
 from ripple.simulation.replay import replay
 from ripple.strategies.baselines import BuyAndHold, MonthlyEqualWeight
 from ripple.stress.search import DEFAULT_STRESS_MODELS, run_stress_search, write_stress_report
+from ripple.viewer_export import export_all_viewer_runs
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -152,8 +153,21 @@ def main():
     lg_verify = lgs.add_parser("verify", help="Verify hash chain and invariants of forward ledger")
     lg_verify.add_argument("--ledger", default="artifacts/forward/ledger.jsonl")
 
+    ev = sub.add_parser(
+        "export-viewer",
+        help="Export schema-versioned JSON run files for the Ripple frontend viewer",
+    )
+    ev.add_argument("--output", default="frontend/public/runs")
+    ev.add_argument("--snapshot", default="data/snapshots/2016-2026")
+
     args = parser.parse_args()
     try:
+        if args.command == "export-viewer":
+            manifest = export_all_viewer_runs(
+                Path(args.output), snapshot_dir=Path(args.snapshot)
+            )
+            print(json.dumps({"output": str(args.output), "index": manifest}, indent=2))
+            return 0
         if args.command == "data":
             cache = ROOT / ".uv-cache" / "yfinance"
             cache.mkdir(parents=True, exist_ok=True)
