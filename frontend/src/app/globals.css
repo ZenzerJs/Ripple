@@ -1,0 +1,284 @@
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root,
+html[data-theme="light"] {
+  /* Still water (light — default) */
+  --canvas: #F6F4EF;
+  --surface: #FFFFFF;
+  --raised: #EFECE4;
+  --text: #14202B;
+  --muted: #566371;
+  --action: #0B5C73;
+  --action-fg: #FFFFFF;
+  --action-gradient: linear-gradient(135deg, #0B5C73 0%, #0E6E8A 100%);
+  --comparison: #6B7A8C;
+  --leak: #C8442E;
+  --leak-tint: #F9E3DD;
+  --ok: #2E7D5B;
+  --ok-tint: #E3F2EB;
+  --warn: #8A5F00;
+  --warn-tint: #FBF0D9;
+  --border-strong: #7C8896;
+  --border-subtle: #E2DED3;
+  --ring: #CFE8EA;
+  --card-top-highlight: rgba(255, 255, 255, 0.9);
+  --card-shadow: 0 2px 10px rgba(20, 32, 43, 0.04), 0 1px 2px rgba(20, 32, 43, 0.03);
+  --hero-glow: radial-gradient(circle at 78% 28%, rgba(11, 92, 115, 0.09) 0%, rgba(207, 232, 234, 0) 68%);
+  --matured-bar: #CBE4E2;
+  --eval-bar: #DDECEB;
+
+  --font-display: "Fraunces", Georgia, serif;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* 20 Animation Principles timing & easing tokens */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.645, 0.045, 0.355, 1);
+  --ease-in: cubic-bezier(0.55, 0.055, 0.675, 0.19);
+  --dur-enter: 240ms;
+  --dur-exit: 190ms; /* 20% shorter than enter */
+  --dur-dropdown: 180ms; /* 150-250ms */
+  --dur-move: 220ms;
+}
+
+html[data-theme="dark"] {
+  /* Deep water (dark — hand-picked, not inverted) */
+  --canvas: #0C1417;
+  --surface: #142226;
+  --raised: #1B2E33;
+  --text: #E6EEF0;
+  --muted: #9FB0B5;
+  --action: #8FD3E6;
+  --action-fg: #0C1417;
+  --action-gradient: linear-gradient(135deg, #8FD3E6 0%, #72C2D9 100%);
+  --comparison: #8C9BA8;
+  --leak: #FF8F73;
+  --leak-tint: rgba(255, 143, 115, 0.22);
+  --ok: #7FD3A8;
+  --ok-tint: rgba(127, 211, 168, 0.14);
+  --warn: #F5C451;
+  --warn-tint: rgba(245, 196, 81, 0.15);
+  --border-strong: #5E7379;
+  --border-subtle: #23383E;
+  --ring: #5FB7C2;
+  --card-top-highlight: rgba(230, 238, 240, 0.07);
+  --card-shadow: none;
+  --hero-glow: radial-gradient(circle at 78% 28%, rgba(95, 183, 194, 0.11) 0%, rgba(12, 20, 23, 0) 68%);
+  --matured-bar: #3E666E;
+  --eval-bar: #34565E;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  background-color: var(--canvas);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.55;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color var(--dur-move) var(--ease-out),
+    color var(--dur-move) var(--ease-out);
+}
+
+/* Tabular numerals on all metrics, numbers, and table cells */
+.tabular-nums,
+table td,
+table th,
+code,
+.metric-value {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Visible keyboard focus ring drawn in action with 2px ring and offset */
+:focus-visible {
+  outline: 2px solid var(--action) !important;
+  outline-offset: 2px !important;
+}
+
+/* Card surface with 1px top-edge highlight and theme-aware depth */
+.ripple-card {
+  background-color: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  box-shadow: inset 0 1px 0 0 var(--card-top-highlight), var(--card-shadow);
+  transition: background-color var(--dur-move) var(--ease-out),
+    border-color var(--dur-move) var(--ease-out);
+}
+
+/* Rule 4 & 14: Scale to 0.97 on press, don't tween slowly while held */
+.ripple-btn {
+  cursor: pointer;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transform: scale(1);
+  transition: transform var(--dur-enter) var(--ease-out),
+    background-color 150ms var(--ease-out),
+    border-color 150ms var(--ease-out),
+    opacity 150ms var(--ease-out);
+}
+.ripple-btn:active:not(:disabled) {
+  transform: scale(0.97);
+  transition-duration: 50ms;
+}
+
+.ripple-btn-primary {
+  background: var(--action-gradient);
+  color: var(--action-fg);
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+.ripple-btn-primary:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.ripple-btn-secondary {
+  background-color: transparent;
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  font-weight: 500;
+}
+.ripple-btn-secondary:hover:not(:disabled) {
+  background-color: var(--raised);
+}
+
+/* Rule 5: Stretch moving knobs 12% during switch */
+.ripple-knob {
+  transition: transform var(--dur-move) var(--ease-in-out);
+}
+.ripple-knob:active {
+  transform: scaleX(1.12);
+}
+
+/* Rule 1, 10, 11, 12, 15: Popover / Panel entrance from 0.95 at trigger origin */
+@keyframes rippleEnter {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.ripple-enter {
+  animation: rippleEnter var(--dur-enter) var(--ease-out) both;
+}
+
+@keyframes ripplePopoverIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.ripple-popover {
+  transform-origin: top right;
+  animation: ripplePopoverIn var(--dur-dropdown) var(--ease-out) both;
+}
+
+/* Rule 3 & 6: Stagger list/table rows by 30ms (capped at 12 rows so large tables never lag) */
+@keyframes rippleRowFade {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ripple-stagger-row {
+  animation: rippleRowFade var(--dur-enter) var(--ease-out) both;
+  animation-delay: calc(min(var(--stagger-idx, 0), 10) * 30ms);
+}
+
+/* Rule 8: Pulse to confirm success */
+@keyframes rippleSuccessPulse {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.06);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.ripple-pulse-success {
+  animation: rippleSuccessPulse 260ms var(--ease-out);
+}
+
+/* Rule 17: Masks for chart reveal */
+@keyframes rippleClipReveal {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0% 0 0);
+  }
+}
+
+.ripple-chart-reveal {
+  animation: rippleClipReveal 380ms var(--ease-out) both;
+}
+
+/* Rule 18: Crossfade icons + blur */
+@keyframes rippleIconIn {
+  from {
+    opacity: 0;
+    filter: blur(2px);
+    transform: scale(0.88);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0px);
+    transform: scale(1);
+  }
+}
+
+.ripple-icon-swap {
+  animation: rippleIconIn 180ms var(--ease-out) both;
+}
+
+/* Reduced motion compliance (both OS media query and in-app toggle) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+html[data-reduced-motion="true"] *,
+html[data-reduced-motion="true"] *::before,
+html[data-reduced-motion="true"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-delay: 0ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
