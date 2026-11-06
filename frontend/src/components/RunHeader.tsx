@@ -45,11 +45,7 @@ export function RunHeader({
   const kindLabel =
     kind === "leakage_audit" ? "TEMPORAL INTEGRITY" : "PORTFOLIO & STRESS LAB";
 
-  // Spec rule: "`status` gates the UI. `draft` runs render with a persistent 'unverified' banner. Only `verified` runs can be linked from the overview."
-  const selectableRuns =
-    activeTab === "overview"
-      ? runs.filter((r) => r.status === "verified")
-      : runs;
+  const selectableRuns = runs;
 
   const navItems: Array<{ id: ScreenTab; label: string }> = [
     { id: "overview", label: "Overview" },

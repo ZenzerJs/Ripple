@@ -62,3 +62,17 @@ def test_export_all_viewer_runs_synthetic_fallback(tmp_path: Path) -> None:
     assert len(common_ridge_6) == 2
     assert common_ridge_6[0]["value"] == common_ridge_6[1]["value"]
 
+    # Check draft run includes all 4 fold states on corrected folds
+    draft_run = json.loads(
+        (out_dir / "leakage-audit-gld-draft.json").read_text(encoding="utf-8")
+    )
+    corr_states = {
+        f["state"] for f in draft_run["folds"] if f["variant"] == "corrected"
+    }
+    assert corr_states == {
+        "ok",
+        "skipped_insufficient_labels",
+        "model_failed",
+        "unavailable",
+    }
+

@@ -157,16 +157,16 @@ See [architecture](docs/architecture.md), [data contract](docs/data-contract.md)
 | Forecasting | scikit-learn, `arch` (GARCH) |
 | Market calendar & ingestion | `exchange_calendars`, `yfinance` |
 | Reproducibility | `uv` lockfile, SHA-256 manifests, frozen local snapshots |
-| Quality gates | **pytest**, **Ruff**, GitHub Actions |
-| Reporting | CSV/JSON artifacts and Matplotlib |
+| Quality gates | **pytest**, **Ruff**, **Vitest**, **Playwright**, GitHub Actions |
+| Reporting & Viewer | CSV/JSON artifacts, Matplotlib, **Next.js 15 + TypeScript** read-only viewer (`frontend/`) |
 
-No paid inference APIs, hosted database, or frontend are required.
+No paid inference APIs or hosted databases are required; the frontend reads static schema-validated JSON exports (`schema_version: "1.0"`).
 
 ---
 
 ## 🚀 Getting Started
 
-**Prerequisites:** Python 3.12 and [`uv`](https://docs.astral.sh/uv/getting-started/installation/).
+**Prerequisites:** Python 3.12, [`uv`](https://docs.astral.sh/uv/getting-started/installation/), and Node.js 20+ (optional, for the `frontend/` research viewer).
 
 ```bash
 git clone https://github.com/ZenzerJs/Ripple.git
@@ -181,6 +181,10 @@ uv run --frozen ripple demo
 # Verify the offline code paths
 uv run --frozen pytest tests -q
 uv run --frozen ruff check src tests
+
+# Export schema-validated viewer JSON runs and start the read-only Next.js viewer
+uv run --frozen ripple export-viewer --output frontend/public/runs
+cd frontend && npm install && npm run dev
 ```
 
 The demo writes locally under `artifacts/synthetic/demo/`. CI performs the same class of offline checks using committed fixtures; it does **not** need to download historical Yahoo data.
@@ -241,6 +245,19 @@ uv run --frozen ripple ledger verify --ledger artifacts/forward/ledger.jsonl
 
 </details>
 
+<details>
+<summary><strong>6. Export & verify the read-only Research Viewer (Still water / Deep water)</strong></summary>
+
+```bash
+uv run --frozen ripple export-viewer --output frontend/public/runs
+cd frontend
+npm run typecheck
+npm test
+npx playwright test
+```
+
+</details>
+
 ---
 
 ## 📁 Project Structure
@@ -255,7 +272,9 @@ Ripple/
 │   ├── simulation/    # Self-financing execution ledger and replay
 │   ├── evaluation/    # Comparison, metrics, and bootstrap analysis
 │   ├── stress/        # Block resampling, realism checks, failure search
-│   └── ledger/        # Prospective event-chain primitives
+│   ├── ledger/        # Prospective event-chain primitives
+│   └── viewer_export.py # Schema v1.0 static JSON exporter for the viewer
+├── frontend/          # Next.js + TypeScript read-only research viewer (Still/Deep water)
 ├── tests/             # Deterministic offline and boundary tests
 ├── docs/              # Research contracts, decisions, results, roadmap
 ├── configs/           # Frozen replay configuration

@@ -209,13 +209,17 @@ def build_leakage_audit_run(
                     fold_state = "ok"
                     reason_text = None
                     pred_val: float | None = preds[m]
-                    if status == "draft" and idx == start_eval_idx + 4 and m == "arima":
+                    if status == "draft" and idx == start_eval_idx + h + 2:
                         fold_state = "model_failed"
-                        reason_text = "Failed: AR(1) covariance matrix ill-conditioned on window"
+                        reason_text = (
+                            f"Failed: {m} solver covariance matrix ill-conditioned on window"
+                        )
                         pred_val = None
-                    elif status == "draft" and idx == start_eval_idx + 5 and m == "ridge":
+                    elif status == "draft" and idx == start_eval_idx + h + 3:
                         fold_state = "unavailable"
-                        reason_text = "Unavailable: missing feature observation at decision cutoff"
+                        reason_text = (
+                            "Unavailable: missing feature observation at decision cutoff"
+                        )
                         pred_val = None
                     folds.append(
                         {

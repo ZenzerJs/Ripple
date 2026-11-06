@@ -183,15 +183,31 @@ export function FoldPanel({
       (f) => f.variant === "corrected" && f.model === selectedModel
     ) ?? dateFolds.find((f) => f.variant === "corrected");
 
-  // Find a skipped fold date and a failed/ok fold date for instant 1-click verification
+  // Find a skipped fold date and a failed/unavailable fold date for instant 1-click verification
   const firstSkippedDate =
     horizonFolds.find(
       (f) =>
-        f.variant === "corrected" && f.state === "skipped_insufficient_labels"
+        f.variant === "corrected" &&
+        f.model === selectedModel &&
+        f.state === "skipped_insufficient_labels"
     )?.forecast_date ?? allDates[0];
-  const firstFailedDate = horizonFolds.find(
-    (f) => f.state === "model_failed" || f.state === "unavailable"
-  )?.forecast_date;
+  const firstFailedDate =
+    horizonFolds.find(
+      (f) =>
+        f.variant === "corrected" &&
+        f.model === selectedModel &&
+        f.state === "model_failed"
+    )?.forecast_date ??
+    horizonFolds.find(
+      (f) => f.variant === "corrected" && f.state === "model_failed"
+    )?.forecast_date;
+  const firstUnavailableDate =
+    horizonFolds.find(
+      (f) =>
+        f.variant === "corrected" &&
+        f.model === selectedModel &&
+        f.state === "unavailable"
+    )?.forecast_date;
   const representativeOkDate =
     allDates.find((d) => d.startsWith("2018-09") || d.startsWith("2020-03")) ??
     allDates[Math.min(allDates.length - 1, 10)];
@@ -298,7 +314,9 @@ export function FoldPanel({
                   ? "OK"
                   : f?.state === "skipped_insufficient_labels"
                   ? "Skipped"
-                  : f?.state ?? "Unavailable";
+                  : f?.state === "model_failed"
+                  ? "Failed"
+                  : "Unavailable";
               return (
                 <option key={d} value={d}>
                   {d} ({tag})
@@ -341,6 +359,16 @@ export function FoldPanel({
               Inspect Failed Fold ({firstFailedDate})
             </button>
           )}
+          {firstUnavailableDate && (
+            <button
+              type="button"
+              data-testid="fold-jump-unavailable"
+              onClick={() => onSelectDate(firstUnavailableDate)}
+              className="ripple-btn rounded-lg px-2.5 py-1 text-[12px] min-h-[36px] border border-warn bg-warn-tint text-text font-medium"
+            >
+              Inspect Unavailable Fold ({firstUnavailableDate})
+            </button>
+          )}
           {representativeOkDate && (
             <button
               type="button"
@@ -359,22 +387,54 @@ export function FoldPanel({
         <div
           role="status"
           data-testid="fold-non-ok-banner"
-          className="rounded-xl border border-warn bg-warn-tint p-4 text-[14px] text-text"
+          className={`rounded-xl border p-4 text-[14px] text-text ${
+            corrPrimary.state === "model_failed"
+              ? "border-leak bg-leak-tint"
+              : "border-warn bg-warn-tint"
+          }`}
         >
           <p className="font-semibold">
             {corrPrimary.state_reason ??
               `Fold unavailable (${corrPrimary.state})`}
           </p>
-          <p className="text-muted mt-1">
-            At forecast date{" "}
-            <span className="font-mono">{activeDate}</span>, only{" "}
-            <strong className="font-mono text-text">
-              {corrPrimary.train_count}
-            </strong>{" "}
-            training rows had matured {horizon}-month labels (minimum 24
-            required). The corrected pipeline refuses to emit a forecast rather
-            than training on unmatured future returns.
-          </p>
+          {corrPrimary.state === "skipped_insufficient_labels" && (
+            <p className="text-muted mt-1">
+              At forecast date{" "}
+              <span className="font-mono">{activeDate}</span>, only{" "}
+              <strong className="font-mono text-text">
+                {corrPrimary.train_count}
+              </strong>{" "}
+              training rows had matured {horizon}-month labels (minimum 24
+              required). The corrected pipeline refuses to emit a forecast
+              rather than training on unmatured future returns.
+            </p>
+          )}
+          {corrPrimary.state === "model_failed" && (
+            <p className="text-muted mt-1">
+              At forecast date{" "}
+              <span className="font-mono">{activeDate}</span>, the model solver
+              failed to converge on the{" "}
+              <strong className="font-mono text-text">
+                {corrPrimary.train_count}
+              </strong>{" "}
+              matured training rows. The failure is recorded explicitly as{" "}
+              <code className="font-mono text-[12px]">unavailable</code> rather
+              than silently substituting another model&apos;s forecast.
+            </p>
+          )}
+          {corrPrimary.state === "unavailable" && (
+            <p className="text-muted mt-1">
+              At forecast date{" "}
+              <span className="font-mono">{activeDate}</span>, required feature
+              observations were missing at the decision cutoff across{" "}
+              <strong className="font-mono text-text">
+                {corrPrimary.train_count}
+              </strong>{" "}
+              matured training rows. The fold is preserved as{" "}
+              <code className="font-mono text-[12px]">unavailable</code> rather
+              than forward-filling missing inputs.
+            </p>
+          )}
         </div>
       )}
 

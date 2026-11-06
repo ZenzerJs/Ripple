@@ -20,9 +20,9 @@ export function FindingCard({
   onReadMethod,
   onOpenPhaseLab,
 }: FindingCardProps) {
-  const primaryLimitation =
-    limitations[0] ??
-    "Overlapping targets make errors correlated. No significance is claimed.";
+  const secondaryLimitation =
+    limitations[1] ??
+    "Adjusted historical closes can be retrospectively revised and are not a true institutional point-in-time vintage.";
 
   return (
     <div className="space-y-6">
@@ -87,8 +87,52 @@ export function FindingCard({
           className="text-[14px] text-muted max-w-prose border-t border-border-subtle/70 pt-4"
         >
           Overlapping targets make errors correlated. No significance is claimed.{" "}
-          <span className="text-muted/90">{primaryLimitation}</span>
+          <span className="text-muted/90">{secondaryLimitation}</span>
         </p>
+
+        {/* Compact MAE & RMSE summary strip so Overview follows: question -> finding -> limitation -> metrics -> chart */}
+        {view.maePair.originalValue !== null &&
+          view.maePair.correctedValue !== null &&
+          view.rmsePair.originalValue !== null &&
+          view.rmsePair.correctedValue !== null && (
+            <div
+              data-testid="overview-metrics-strip"
+              className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4 border-t border-border-subtle/60 text-[13px] font-mono tabular-nums"
+            >
+              <div className="rounded-lg bg-raised/50 border border-border-subtle px-3.5 py-2.5 flex items-center justify-between gap-2">
+                <span className="font-sans font-medium text-muted">
+                  {view.horizon}m MAE ({view.maePair.correctedFolds} folds)
+                </span>
+                <span className="text-text font-semibold">
+                  {view.maePair.originalValue.toFixed(2)}% →{" "}
+                  <span className="text-action">
+                    {view.maePair.correctedValue.toFixed(2)}%
+                  </span>{" "}
+                  (
+                  {view.maePair.deltaPp! > 0
+                    ? `+${view.maePair.deltaPp!.toFixed(2)}`
+                    : view.maePair.deltaPp!.toFixed(2)}{" "}
+                  pp)
+                </span>
+              </div>
+              <div className="rounded-lg bg-raised/50 border border-border-subtle px-3.5 py-2.5 flex items-center justify-between gap-2">
+                <span className="font-sans font-medium text-muted">
+                  {view.horizon}m RMSE ({view.rmsePair.correctedFolds} folds)
+                </span>
+                <span className="text-text font-semibold">
+                  {view.rmsePair.originalValue.toFixed(2)}% →{" "}
+                  <span className="text-action">
+                    {view.rmsePair.correctedValue.toFixed(2)}%
+                  </span>{" "}
+                  (
+                  {view.rmsePair.deltaPp! > 0
+                    ? `+${view.rmsePair.deltaPp!.toFixed(2)}`
+                    : view.rmsePair.deltaPp!.toFixed(2)}{" "}
+                  pp)
+                </span>
+              </div>
+            </div>
+          )}
       </section>
 
       {/* Contribution Card: what was built and what was corrected, in three short lines */}

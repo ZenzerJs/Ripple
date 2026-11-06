@@ -75,11 +75,15 @@ describe("Ripple Frontend Data Contract & Reconciliation", () => {
     if (!res.ok) return;
 
     expect(res.data.status).toBe("draft");
-    const states = new Set(res.data.folds.map((f) => f.state));
-    expect(states.has("ok")).toBe(true);
-    expect(states.has("skipped_insufficient_labels")).toBe(true);
-    expect(states.has("model_failed")).toBe(true);
-    expect(states.has("unavailable")).toBe(true);
+    const corrStates = new Set(
+      res.data.folds
+        .filter((f) => f.variant === "corrected" && f.model === "ridge")
+        .map((f) => f.state)
+    );
+    expect(corrStates.has("ok")).toBe(true);
+    expect(corrStates.has("skipped_insufficient_labels")).toBe(true);
+    expect(corrStates.has("model_failed")).toBe(true);
+    expect(corrStates.has("unavailable")).toBe(true);
   });
 
   it("rejects invalid provenance export with explicit error messages and no partial data", () => {

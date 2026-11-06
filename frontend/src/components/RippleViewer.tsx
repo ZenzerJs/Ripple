@@ -72,8 +72,9 @@ export function RippleViewer({
       ) {
         setSelectedRunId(runParam);
       }
-      const hParam = Number(params.get("horizon"));
-      if (hParam === 6 || hParam === 12) {
+      const hRaw = params.get("horizon");
+      const hParam = hRaw ? Number(hRaw) : NaN;
+      if (Number.isInteger(hParam) && hParam > 0) {
         setHorizon(hParam);
       }
       const mParam = params.get("model");
@@ -296,8 +297,49 @@ export function RippleViewer({
           </section>
         )}
 
-        {/* SCREEN 1: OVERVIEW */}
-        {activeTab === "overview" && view.isSupported && (
+        {/* SCREEN 1: OVERVIEW (Draft runs excluded per spec line 148) */}
+        {activeTab === "overview" && run.status === "draft" && (
+          <section
+            role="status"
+            data-testid="draft-excluded-overview-card"
+            className="ripple-card border-warn p-6 sm:p-8 max-w-prose mx-auto space-y-4 ripple-enter"
+          >
+            <div className="inline-flex items-center gap-2 rounded-full bg-warn-tint border border-warn px-3 py-1 text-[12px] font-semibold text-text">
+              <span className="h-2 w-2 rounded-full bg-warn" />
+              Draft Run · Excluded from Overview
+            </div>
+            <h1 className="font-display text-[28px] font-medium text-text">
+              Unverified draft runs are excluded from the Overview summary
+            </h1>
+            <p className="text-[16px] text-muted">
+              Run <code className="font-mono text-[14px] text-text">{run.run_id}</code> has
+              status <code className="font-mono text-[14px] text-text">draft</code>. Per the
+              Ripple viewer data contract, only <code className="font-mono text-[14px] text-text">verified</code>{" "}
+              runs appear on the Overview screen. You can inspect this draft run&apos;s
+              fold-level diagnostics on the Compare screen or return to a verified run.
+            </p>
+            <div className="flex flex-wrap items-center gap-3 pt-2">
+              <button
+                type="button"
+                data-testid="inspect-draft-in-compare-btn"
+                onClick={() => setActiveTab("compare")}
+                className="ripple-btn ripple-btn-primary rounded-lg px-4 py-2 text-[14px]"
+              >
+                Inspect draft run in Compare →
+              </button>
+              <button
+                type="button"
+                data-testid="switch-verified-from-draft-btn"
+                onClick={() => setSelectedRunId(initialIndex.default_run_id)}
+                className="ripple-btn ripple-btn-secondary rounded-lg px-4 py-2 text-[14px]"
+              >
+                Switch to verified default run ({initialIndex.default_run_id})
+              </button>
+            </div>
+          </section>
+        )}
+
+        {activeTab === "overview" && run.status === "verified" && view.isSupported && (
           <div data-testid="screen-overview" className="space-y-10 ripple-enter">
             {/* Hero Section with Concentric Ripple Rings Motif */}
             <section className="relative overflow-hidden rounded-2xl py-4 sm:py-6">
@@ -354,6 +396,37 @@ export function RippleViewer({
                   Comparing return forecasts before and after enforcing strict
                   temporal cutoffs.
                 </p>
+
+                {/* Verified runs linked from Overview (Spec line 94: Only verified runs can be linked from the overview) */}
+                <div
+                  data-testid="overview-verified-run-links"
+                  className="mt-4 flex flex-wrap items-center gap-2 text-[12px]"
+                >
+                  <span className="font-mono uppercase tracking-wider text-muted">
+                    Verified runs:
+                  </span>
+                  {initialIndex.runs
+                    .filter((r) => r.status === "verified")
+                    .map((r) => {
+                      const active = r.run_id === selectedRunId;
+                      return (
+                        <button
+                          key={r.run_id}
+                          type="button"
+                          data-testid={`overview-link-${r.run_id}`}
+                          aria-pressed={active}
+                          onClick={() => setSelectedRunId(r.run_id)}
+                          className={`rounded-full px-3 py-1 font-mono transition-colors cursor-pointer border ${
+                            active
+                              ? "bg-action text-action-fg border-action font-semibold"
+                              : "bg-surface text-text border-border-strong hover:bg-raised"
+                          }`}
+                        >
+                          {r.ticker} ({r.run_id.includes("null") ? "null-control" : "verified"})
+                        </button>
+                      );
+                    })}
+                </div>
               </div>
             </section>
 
@@ -463,7 +536,7 @@ export function RippleViewer({
                   <MetricPair pair={view.rmsePair} scope={scope} />
                 </div>
 
-                {/* Split layout when FoldPanel is open on wide screens */}
+                {/* Split layout beside chart on wide screens, bottom sheet on narrow screens (Spec lines 225 & 239) */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                   <div
                     className={
@@ -509,16 +582,30 @@ export function RippleViewer({
                   </div>
 
                   {isCompareFoldOpen && (
-                    <div className="lg:col-span-5">
-                      <FoldPanel
-                        run={run}
-                        selectedDate={effectiveFoldDate}
-                        horizon={horizon}
-                        selectedModel={model}
-                        onSelectDate={setSelectedFoldDate}
-                        onClose={() => setIsCompareFoldOpen(false)}
+                    <>
+                      <div
+                        aria-hidden="true"
+                        onClick={() => setIsCompareFoldOpen(false)}
+                        className="fixed inset-0 z-30 bg-black/40 backdrop-blur-[1px] lg:hidden"
                       />
-                    </div>
+                      <div
+                        data-testid="compare-fold-sheet"
+                        className="fixed inset-x-0 bottom-0 z-40 max-h-[82vh] overflow-y-auto rounded-t-2xl border-t-2 border-action bg-surface p-2 shadow-2xl lg:static lg:z-auto lg:col-span-5 lg:max-h-none lg:overflow-visible lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none"
+                      >
+                        <div
+                          aria-hidden="true"
+                          className="mx-auto my-1.5 h-1.5 w-12 rounded-full bg-border-strong/50 lg:hidden"
+                        />
+                        <FoldPanel
+                          run={run}
+                          selectedDate={effectiveFoldDate}
+                          horizon={horizon}
+                          selectedModel={model}
+                          onSelectDate={setSelectedFoldDate}
+                          onClose={() => setIsCompareFoldOpen(false)}
+                        />
+                      </div>
+                    </>
                   )}
                 </div>
 

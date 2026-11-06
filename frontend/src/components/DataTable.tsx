@@ -39,16 +39,23 @@ export function DataTable({
       : rows;
 
   const sortedRows = [...filteredRows].sort((a, b) => {
-    let cmp = 0;
     if (sortKey === "date") {
-      cmp = a.forecast_date.localeCompare(b.forecast_date);
-    } else if (sortKey === "orig_err") {
-      cmp = (a.original_error_pct ?? -1) - (b.original_error_pct ?? -1);
-    } else if (sortKey === "corr_err") {
-      cmp = (a.corrected_error_pct ?? -1) - (b.corrected_error_pct ?? -1);
-    } else {
-      cmp = (a.delta_error_pp ?? -999) - (b.delta_error_pp ?? -999);
+      const cmp = a.forecast_date.localeCompare(b.forecast_date);
+      return sortAsc ? cmp : -cmp;
     }
+    const getVal = (r: AlignedDateRow): number | null => {
+      if (sortKey === "orig_err") return r.original_error_pct;
+      if (sortKey === "corr_err") return r.corrected_error_pct;
+      return r.delta_error_pp;
+    };
+    const va = getVal(a);
+    const vb = getVal(b);
+    if (va === null && vb === null) {
+      return a.forecast_date.localeCompare(b.forecast_date);
+    }
+    if (va === null) return 1;
+    if (vb === null) return -1;
+    const cmp = va - vb;
     return sortAsc ? cmp : -cmp;
   });
 
@@ -111,9 +118,20 @@ export function DataTable({
         >
           <thead className="sticky top-0 z-10 bg-raised border-b border-border-subtle text-[12px] uppercase tracking-wider text-muted">
             <tr>
-              <th scope="col" className="py-3 px-4">
+              <th
+                scope="col"
+                aria-sort={
+                  sortKey === "date"
+                    ? sortAsc
+                      ? "ascending"
+                      : "descending"
+                    : "none"
+                }
+                className="py-3 px-4"
+              >
                 <button
                   type="button"
+                  data-testid="sort-date-btn"
                   onClick={() => handleSort("date")}
                   className="inline-flex items-center gap-1 font-semibold text-text cursor-pointer hover:underline"
                 >
@@ -130,9 +148,20 @@ export function DataTable({
               <th scope="col" className="py-3 px-4 text-right">
                 Corrected Pred (%)
               </th>
-              <th scope="col" className="py-3 px-4 text-right">
+              <th
+                scope="col"
+                aria-sort={
+                  sortKey === "orig_err"
+                    ? sortAsc
+                      ? "ascending"
+                      : "descending"
+                    : "none"
+                }
+                className="py-3 px-4 text-right"
+              >
                 <button
                   type="button"
+                  data-testid="sort-orig-err-btn"
                   onClick={() => handleSort("orig_err")}
                   className="inline-flex items-center gap-1 font-semibold text-text cursor-pointer hover:underline"
                 >
@@ -140,9 +169,20 @@ export function DataTable({
                   {sortKey === "orig_err" ? (sortAsc ? "↑" : "↓") : ""}
                 </button>
               </th>
-              <th scope="col" className="py-3 px-4 text-right">
+              <th
+                scope="col"
+                aria-sort={
+                  sortKey === "corr_err"
+                    ? sortAsc
+                      ? "ascending"
+                      : "descending"
+                    : "none"
+                }
+                className="py-3 px-4 text-right"
+              >
                 <button
                   type="button"
+                  data-testid="sort-corr-err-btn"
                   onClick={() => handleSort("corr_err")}
                   className="inline-flex items-center gap-1 font-semibold text-text cursor-pointer hover:underline"
                 >
@@ -150,9 +190,20 @@ export function DataTable({
                   {sortKey === "corr_err" ? (sortAsc ? "↑" : "↓") : ""}
                 </button>
               </th>
-              <th scope="col" className="py-3 px-4 text-right">
+              <th
+                scope="col"
+                aria-sort={
+                  sortKey === "delta"
+                    ? sortAsc
+                      ? "ascending"
+                      : "descending"
+                    : "none"
+                }
+                className="py-3 px-4 text-right"
+              >
                 <button
                   type="button"
+                  data-testid="sort-delta-btn"
                   onClick={() => handleSort("delta")}
                   className="inline-flex items-center gap-1 font-semibold text-text cursor-pointer hover:underline"
                 >

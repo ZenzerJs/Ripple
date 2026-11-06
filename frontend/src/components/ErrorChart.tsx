@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useId, useRef, useState } from "react";
 import {
   AlignedDateRow,
   MetricComparisonPair,
@@ -42,6 +42,7 @@ export function ErrorChart({
   windowEnd,
   compact = false,
 }: ErrorChartProps) {
+  const gradId = useId().replace(/:/g, "");
   const pointRefs = useRef<Array<SVGGElement | null>>([]);
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
 
@@ -91,38 +92,71 @@ export function ErrorChart({
   const getY = (val: number) =>
     padTop + plotH - Math.min(1, Math.max(0, val / yMax)) * plotH;
 
-  // Build SVG path for Original (dashed) and Corrected (solid + area fill)
-  const origPoints: Array<{ x: number; y: number; row: AlignedDateRow }> = [];
-  const corrPoints: Array<{ x: number; y: number; row: AlignedDateRow }> = [];
+  // Build SVG paths that break cleanly (M) across null/failed/unavailable folds
+  const origPoints: Array<{ x: number; y: number; idx: number; row: AlignedDateRow }> = [];
+  const corrPoints: Array<{ x: number; y: number; idx: number; row: AlignedDateRow }> = [];
 
   plotRows.forEach((r, idx) => {
     const x = getX(idx);
     if (r.original_error_pct !== null) {
-      origPoints.push({ x, y: getY(r.original_error_pct), row: r });
+      origPoints.push({ x, y: getY(r.original_error_pct), idx, row: r });
     }
     if (r.corrected_error_pct !== null) {
-      corrPoints.push({ x, y: getY(r.corrected_error_pct), row: r });
+      corrPoints.push({ x, y: getY(r.corrected_error_pct), idx, row: r });
     }
   });
 
-  const toSmoothPath = (pts: Array<{ x: number; y: number }>) => {
+  const toSegmentedPath = (
+    pts: Array<{ x: number; y: number; idx: number }>
+  ) => {
     if (pts.length === 0) return "";
-    if (pts.length === 1) return `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
     return pts
-      .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`)
+      .map((p, i) => {
+        const isContiguous = i > 0 && p.idx === pts[i - 1].idx + 1;
+        return `${isContiguous ? "L" : "M"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`;
+      })
       .join(" ");
   };
 
-  const origPath = toSmoothPath(origPoints);
-  const corrPath = toSmoothPath(corrPoints);
-  const corrAreaPath =
-    corrPoints.length >= 2
-      ? `${corrPath} L ${corrPoints[corrPoints.length - 1].x.toFixed(1)} ${(
+  const origPath = toSegmentedPath(origPoints);
+  const corrPath = toSegmentedPath(corrPoints);
+  // Build area path only across contiguous segments
+  const buildAreaPath = (pts: Array<{ x: number; y: number; idx: number }>) => {
+    if (pts.length < 2) return "";
+    const segments: Array<Array<{ x: number; y: number }>> = [];
+    for (const p of pts) {
+      const curSeg = segments[segments.length - 1];
+      if (!curSeg || p.idx !== (curSeg[curSeg.length - 1] as { idx?: number }).idx! + 1) {
+        segments.push([p]);
+      } else {
+        curSeg.push(p);
+      }
+    }
+    return segments
+      .filter((seg) => seg.length >= 2)
+      .map((seg) => {
+        const line = seg
+          .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`)
+          .join(" ");
+        return `${line} L ${seg[seg.length - 1].x.toFixed(1)} ${(
           padTop + plotH
-        ).toFixed(1)} L ${corrPoints[0].x.toFixed(1)} ${(
-          padTop + plotH
-        ).toFixed(1)} Z`
-      : "";
+        ).toFixed(1)} L ${seg[0].x.toFixed(1)} ${(padTop + plotH).toFixed(1)} Z`;
+      })
+      .join(" ");
+  };
+  const corrAreaPath = buildAreaPath(corrPoints);
+
+  // Shaded early-fold skipped region when scope === "all_folds"
+  let skippedSpanEndIdx = -1;
+  if (scope === "all_folds") {
+    for (let i = 0; i < plotRows.length; i++) {
+      if (plotRows[i].corrected?.state === "skipped_insufficient_labels") {
+        skippedSpanEndIdx = i;
+      } else {
+        break;
+      }
+    }
+  }
 
   const lastOrig = origPoints[origPoints.length - 1];
   const lastCorr = corrPoints[corrPoints.length - 1];
@@ -145,12 +179,15 @@ export function ErrorChart({
     selectedDate ??
     plotRows[Math.floor(plotRows.length / 2)]?.forecast_date ??
     plotRows[0].forecast_date;
-  const activeIdx = Math.max(
-    0,
-    plotRows.findIndex((r) => r.forecast_date === activeDate)
+  const plotActiveIdx = plotRows.findIndex(
+    (r) => r.forecast_date === activeDate
   );
-  const activeRow = plotRows[activeIdx] ?? plotRows[0];
-  const activeX = getX(activeIdx);
+  // Keep readout synchronized even if user selected an early skipped fold from DataTable while in common_dates mode
+  const activeRow =
+    (plotActiveIdx >= 0 ? plotRows[plotActiveIdx] : null) ??
+    rows.find((r) => r.forecast_date === activeDate) ??
+    plotRows[0];
+  const activeX = plotActiveIdx >= 0 ? getX(plotActiveIdx) : padLeft;
 
   const handlePointKeyDown = (
     e: React.KeyboardEvent<SVGGElement>,
@@ -199,10 +236,10 @@ export function ErrorChart({
     : { label: "Unavailable", tone: "warn" as const };
 
   return (
-    <section
+    <figure
       aria-label="Forecast error comparison chart"
       data-testid="error-chart"
-      className="ripple-card p-6 sm:p-8"
+      className="ripple-card p-6 sm:p-8 m-0"
     >
       {/* Top header & legend matching mockup */}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-3">
@@ -277,11 +314,34 @@ export function ErrorChart({
           className="w-full h-auto select-none block"
         >
           <defs>
-            <linearGradient id="correctedAreaGrad" x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="var(--action)" stopOpacity="0.22" />
               <stop offset="100%" stopColor="var(--action)" stopOpacity="0.01" />
             </linearGradient>
           </defs>
+
+          {/* Shaded pre-maturity skipped region in all_folds mode */}
+          {skippedSpanEndIdx >= 0 && (
+            <g data-testid="chart-skipped-region">
+              <rect
+                x={padLeft}
+                y={padTop}
+                width={Math.max(8, getX(skippedSpanEndIdx) - padLeft + 6)}
+                height={plotH}
+                fill="var(--warn-tint)"
+                opacity="0.7"
+              />
+              <text
+                x={padLeft + 6}
+                y={padTop + 14}
+                fontSize="11"
+                fill="var(--warn)"
+                className="font-mono"
+              >
+                {skippedSpanEndIdx + 1} early folds skipped in corrected (&lt;24 matured labels)
+              </text>
+            </g>
+          )}
 
           {/* Horizontal gridlines + Y-axis labels starting at 0% */}
           {yTicks.map((t) => {
@@ -343,7 +403,7 @@ export function ErrorChart({
           {/* Animated chart paths inside clip reveal */}
           <g className="ripple-chart-reveal">
             {corrAreaPath && (
-              <path d={corrAreaPath} fill="url(#correctedAreaGrad)" />
+              <path d={corrAreaPath} fill={`url(#${gradId})`} />
             )}
 
             {/* Original series: dashed comparison colour */}
@@ -373,40 +433,42 @@ export function ErrorChart({
           </g>
 
           {/* Active fold vertical playhead & concentric ripple rings */}
-          <g aria-hidden="true">
-            <line
-              x1={activeX}
-              y1={padTop}
-              x2={activeX}
-              y2={padTop + plotH}
-              stroke="var(--action)"
-              strokeWidth="1"
-              strokeDasharray="3 3"
-              strokeOpacity="0.65"
-            />
-            {activeRow.corrected_error_pct !== null && (
-              <>
-                <circle
-                  cx={activeX}
-                  cy={getY(activeRow.corrected_error_pct)}
-                  r="13"
-                  fill="none"
-                  stroke="var(--ring)"
-                  strokeWidth="1.25"
-                  strokeOpacity="0.35"
-                />
-                <circle
-                  cx={activeX}
-                  cy={getY(activeRow.corrected_error_pct)}
-                  r="8"
-                  fill="none"
-                  stroke="var(--ring)"
-                  strokeWidth="1.5"
-                  strokeOpacity="0.55"
-                />
-              </>
-            )}
-          </g>
+          {plotActiveIdx >= 0 && (
+            <g aria-hidden="true">
+              <line
+                x1={activeX}
+                y1={padTop}
+                x2={activeX}
+                y2={padTop + plotH}
+                stroke="var(--action)"
+                strokeWidth="1"
+                strokeDasharray="3 3"
+                strokeOpacity="0.65"
+              />
+              {activeRow.corrected_error_pct !== null && (
+                <>
+                  <circle
+                    cx={activeX}
+                    cy={getY(activeRow.corrected_error_pct)}
+                    r="13"
+                    fill="none"
+                    stroke="var(--ring)"
+                    strokeWidth="1.25"
+                    strokeOpacity="0.35"
+                  />
+                  <circle
+                    cx={activeX}
+                    cy={getY(activeRow.corrected_error_pct)}
+                    r="8"
+                    fill="none"
+                    stroke="var(--ring)"
+                    strokeWidth="1.5"
+                    strokeOpacity="0.55"
+                  />
+                </>
+              )}
+            </g>
+          )}
 
           {/* Direct right-edge series labels matching mockup */}
           {lastCorr && (
@@ -535,7 +597,11 @@ export function ErrorChart({
                     cx={x}
                     cy={padTop + plotH - 4}
                     r={isSelected ? 5 : 3.5}
-                    fill="var(--warn)"
+                    fill={
+                      r.corrected?.state === "model_failed"
+                        ? "var(--leak)"
+                        : "var(--warn)"
+                    }
                     stroke="var(--surface)"
                     strokeWidth="1.5"
                   />
@@ -600,7 +666,7 @@ export function ErrorChart({
       </div>
 
       {/* Plain-language note under the chart naming dataset window, baseline variant, and serial correlation limitation */}
-      <p
+      <figcaption
         data-testid="chart-plain-note"
         className="mt-4 text-[14px] text-muted max-w-prose"
       >
@@ -615,7 +681,7 @@ export function ErrorChart({
         <span className="tabular-nums">{plotRows.length}</span> fold count and no
         statistical significance or winner is declared. Use Left/Right arrow keys
         on any point to step across forecast dates.
-      </p>
-    </section>
+      </figcaption>
+    </figure>
   );
 }

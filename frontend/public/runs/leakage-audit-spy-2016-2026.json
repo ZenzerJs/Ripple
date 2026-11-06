@@ -4,7 +4,7 @@
   "kind": "leakage_audit",
   "status": "verified",
   "source": {
-    "repo_commit": "807919436a4a1d6b5fcf81d55f80d1dc660f5516",
+    "repo_commit": "2ed7b82333204d6991a1b00a18212397fd3379d0",
     "data_sha256": "6cbb93460e1241a164685d658bc5100382283cc86d74dfd7ac1af1e5211dc133",
     "ticker": "SPY",
     "frequency": "monthly",

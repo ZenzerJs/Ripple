@@ -45,7 +45,7 @@ test.describe("Ripple Frontend Viewer E2E", () => {
     await page.getByTestId("horizon-12").click();
     await expect(page.getByTestId("metric-mae-dropped")).toContainText("12");
 
-    // 6. Verify Skipped fold rows are preserved in DataTable as "unavailable" with text reason
+    // 6. Verify Skipped fold rows are preserved in DataTable as "unavailable" with text reason, and selecting a skipped row in common_dates mode keeps ErrorChart readout synchronized
     await page.getByTestId("table-filter-skipped").click();
     await expect(page.getByTestId("fold-data-table")).toContainText(
       "Skipped: too few matured labels"
@@ -53,8 +53,24 @@ test.describe("Ripple Frontend Viewer E2E", () => {
     await expect(page.getByTestId("fold-data-table")).toContainText(
       "unavailable"
     );
+    await page.getByTestId("table-row-2018-06-29").click();
+    await expect(page.getByTestId("chart-active-readout")).toContainText(
+      "2018-06-29"
+    );
+    await expect(page.getByTestId("chart-active-readout")).toContainText(
+      "Skipped · Insufficient labels"
+    );
 
-    // 7. Navigate to Fold detail and verify skipped and matured fold inspection
+    // 7. Verify DataTable numeric sort puts valid numbers first and unavailable rows last
+    await page.getByTestId("table-filter-all").click();
+    await page.getByTestId("sort-corr-err-btn").click();
+    const firstRowText = await page
+      .locator('[data-testid^="table-row-"]')
+      .first()
+      .textContent();
+    expect(firstRowText).not.toContain("Skipped · Insufficient labels");
+
+    // 8. Navigate to Fold detail and verify skipped and matured fold inspection
     await page.getByTestId("nav-fold").click();
     await expect(page.getByTestId("screen-fold")).toBeVisible();
     await page.getByTestId("fold-jump-skipped").click();
@@ -63,12 +79,22 @@ test.describe("Ripple Frontend Viewer E2E", () => {
     );
   });
 
-  test("handles Draft run banner, Null-difference run, Invalid provenance block, and Phase 3-6 Lab view", async ({
+  test("handles Draft run exclusion on Overview, Failed & Unavailable fold states, Null-difference run, Invalid provenance block, Unsupported URL recovery, and Phase 3-6 Lab view", async ({
     page,
   }) => {
-    await page.goto("/?tab=compare");
+    // 1. Tampered URL with unsupported horizon=24 and unknown model -> verify recovery banner
+    await page.goto(
+      "/?tab=compare&run=leakage-audit-spy-2016-2026&horizon=24&model=unknown_model"
+    );
+    await expect(
+      page.getByTestId("unsupported-comparison-banner")
+    ).toBeVisible();
+    await page.getByTestId("nearest-valid-selection-btn").click();
+    await expect(
+      page.getByTestId("unsupported-comparison-banner")
+    ).toHaveCount(0);
 
-    // 1. Select Null-Difference Control Run
+    // 2. Select Null-Difference Control Run
     await page
       .getByTestId("run-selector")
       .selectOption("leakage-audit-vnq-null-control");
@@ -77,15 +103,36 @@ test.describe("Ripple Frontend Viewer E2E", () => {
       "was unchanged at"
     );
 
-    // 2. Switch to Compare and select Draft run (GLD) -> verify persistent unverified banner
-    await page.getByTestId("nav-compare").click();
+    // 3. Select Draft run (GLD) while on Overview -> verify persistent unverified banner AND exclusion from Overview
     await page
       .getByTestId("run-selector")
       .selectOption("leakage-audit-gld-draft");
     await expect(page.getByTestId("draft-run-banner")).toBeVisible();
     await expect(page.getByTestId("status-badge-draft")).toContainText("Draft");
+    await expect(
+      page.getByTestId("draft-excluded-overview-card")
+    ).toBeVisible();
+    await page.getByTestId("inspect-draft-in-compare-btn").click();
+    await expect(page.getByTestId("screen-compare")).toBeVisible();
 
-    // 3. Select Invalid Provenance Fixture -> verify full block and error reasons
+    // 4. Inspect Failed and Unavailable folds in FoldPanel on the GLD draft run
+    await page.getByTestId("nav-fold").click();
+    await page.getByTestId("fold-jump-failed").click();
+    await expect(page.getByTestId("fold-state-badge")).toContainText(
+      "Failed · Nonconverged"
+    );
+    await expect(page.getByTestId("fold-non-ok-banner")).toContainText(
+      "failed to converge"
+    );
+    await page.getByTestId("fold-jump-unavailable").click();
+    await expect(page.getByTestId("fold-state-badge")).toContainText(
+      "Unavailable · Missing input"
+    );
+    await expect(page.getByTestId("fold-non-ok-banner")).toContainText(
+      "missing feature observation"
+    );
+
+    // 5. Select Invalid Provenance Fixture -> verify full block and error reasons
     await page
       .getByTestId("run-selector")
       .selectOption("invalid-provenance-fixture");
@@ -96,9 +143,8 @@ test.describe("Ripple Frontend Viewer E2E", () => {
       "source.repo_commit"
     );
     await page.getByTestId("recover-valid-run-btn").click();
-    await expect(page.getByTestId("screen-compare")).toBeVisible();
 
-    // 4. Open Phase 3-6 Portfolio & Stress Lab view
+    // 6. Open Phase 3-6 Portfolio & Stress Lab view
     await page.getByTestId("nav-lab").click();
     await expect(page.getByTestId("phase-lab-view")).toBeVisible();
     await expect(page.getByTestId("lab-portfolio-table")).toContainText(
@@ -112,7 +158,7 @@ test.describe("Ripple Frontend Viewer E2E", () => {
     );
   });
 
-  test("narrow mobile screen (375px) renders readable Overview and Compare without horizontal page overflow", async ({
+  test("narrow mobile screen (375px) renders readable Overview, Compare bottom-sheet FoldPanel, and zero horizontal page overflow", async ({
     page,
   }) => {
     await page.setViewportSize({ width: 375, height: 812 });
@@ -120,6 +166,7 @@ test.describe("Ripple Frontend Viewer E2E", () => {
 
     await expect(page.getByTestId("overview-question-heading")).toBeVisible();
     await expect(page.getByTestId("finding-card")).toBeVisible();
+    await expect(page.getByTestId("overview-metrics-strip")).toBeVisible();
 
     const overflow = await page.evaluate(() => {
       return (
@@ -128,5 +175,13 @@ test.describe("Ripple Frontend Viewer E2E", () => {
       );
     });
     expect(overflow).toBe(false);
+
+    // Open Compare and trigger FoldPanel bottom sheet on 375px screen
+    await page.getByTestId("cta-explore-comparison").click();
+    await page.getByTestId("chart-inspect-fold-btn").click();
+    const sheet = page.getByTestId("compare-fold-sheet");
+    await expect(sheet).toBeVisible();
+    const pos = await sheet.evaluate((el) => getComputedStyle(el).position);
+    expect(pos).toBe("fixed");
   });
 });
