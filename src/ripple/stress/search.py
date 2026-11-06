@@ -182,23 +182,47 @@ def run_stress_search(
         v = str(r["verdict"])
         verdict_counts[v] = verdict_counts.get(v, 0) + 1
 
-    # Summarize failure profiles across all evaluated strategies on valid paths
+    # Summarize failure profiles: select worst case strictly from search collection,
+    # keeping validation collection untouched per Phase 5 Section 6.3
+    search_all = [r for r in all_records if r["collection"] == "search"]
+    val_all = [r for r in all_records if r["collection"] == "validation"]
+    valid_search = [r for r in search_all if r["verdict"] == "valid"]
+    valid_val = [r for r in val_all if r["verdict"] == "valid"]
     valid_records = [r for r in all_records if r["verdict"] == "valid"]
     strategy_profiles: dict[str, Any] = {}
     if all_records:
         strat_names = list(all_records[0]["strategy_outcomes"].keys())
+        search_pool = valid_search if valid_search else search_all
+        val_pool = valid_val if valid_val else val_all
+        overall_pool = valid_records if valid_records else all_records
         for s_name in strat_names:
-            pool = valid_records if valid_records else all_records
-            rels = [r["strategy_outcomes"][s_name]["relative_return_vs_ew5d"] for r in pool]
+            s_rels = [
+                r["strategy_outcomes"][s_name]["relative_return_vs_ew5d"] for r in search_pool
+            ]
+            v_rels = [
+                r["strategy_outcomes"][s_name]["relative_return_vs_ew5d"] for r in val_pool
+            ]
+            o_rels = [
+                r["strategy_outcomes"][s_name]["relative_return_vs_ew5d"] for r in overall_pool
+            ]
             worst_rec = min(
-                pool, key=lambda r: r["strategy_outcomes"][s_name]["relative_return_vs_ew5d"]
+                search_pool,
+                key=lambda r: r["strategy_outcomes"][s_name]["relative_return_vs_ew5d"],
             )
             strategy_profiles[s_name] = {
                 "worst_scenario_id": worst_rec["scenario_id"],
-                "worst_relative_return_vs_ew5d": float(min(rels)),
-                "median_relative_return_vs_ew5d": float(pd.Series(rels).median()),
-                "underperformed_ew5d_count": int(sum(1 for x in rels if x < 0.0)),
-                "evaluated_valid_scenarios": len(pool),
+                "worst_relative_return_vs_ew5d": float(min(s_rels)),
+                "median_relative_return_vs_ew5d": float(pd.Series(o_rels).median()),
+                "underperformed_ew5d_count": int(sum(1 for x in o_rels if x < 0.0)),
+                "evaluated_valid_scenarios": len(overall_pool),
+                "search_valid_scenarios": len(search_pool),
+                "validation_valid_scenarios": len(val_pool),
+                "validation_worst_relative_return_vs_ew5d": (
+                    float(min(v_rels)) if v_rels else None
+                ),
+                "validation_median_relative_return_vs_ew5d": (
+                    float(pd.Series(v_rels).median()) if v_rels else None
+                ),
             }
 
     return {
