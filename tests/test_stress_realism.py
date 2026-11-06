@@ -77,7 +77,11 @@ def test_realism_screen_distinguishes_valid_borderline_and_rejected_paths():
     # Block-bootstrapped path with relaxed drawdown multiple is valid
     cand, _ = generate_block_bootstrap_path(ref, block_length=15, seed=101)
     verdict_ok = screen_path_realism(
-        cand, ref, thresholds=RealismThresholds(max_drawdown_multiple=3.0, borderline_drawdown_multiple=2.5)
+        cand,
+        ref,
+        thresholds=RealismThresholds(
+            max_drawdown_multiple=3.0, borderline_drawdown_multiple=2.5
+        ),
     )
     assert verdict_ok.verdict in ("valid", "borderline")
 
