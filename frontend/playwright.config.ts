@@ -16,6 +16,12 @@ export default defineConfig({
       name: "chromium",
       use: { ...devices["Desktop Chrome"], channel: "chrome" },
     },
+    ...(process.env.PLAYWRIGHT_ALL_BROWSERS
+      ? [
+          { name: "firefox", use: { ...devices["Desktop Firefox"] } },
+          { name: "webkit", use: { ...devices["Desktop Safari"] } },
+        ]
+      : []),
   ],
   webServer: {
     command: "npm run dev",
