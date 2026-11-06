@@ -110,6 +110,13 @@ export function DataTable({
         </div>
       </div>
 
+      {filterState === "skipped" && (
+        <p className="text-sm text-muted mb-4" role="status">
+          Showing {nonOkCount} non-OK folds only. Select All folds to see all{" "}
+          {rows.length} dates.
+        </p>
+      )}
+
       {/* Scrollable table container for narrow screens */}
       <div className="max-h-[460px] overflow-auto rounded-xl border border-border-subtle">
         <table
@@ -299,15 +306,15 @@ export function DataTable({
                   <td className="py-3 px-4 font-sans text-[12px]">
                     <div className="flex flex-col gap-1">
                       <span
-                        className={`inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-0.5 font-medium border ${
+                        className={`fold-state-label ${
                           badge.tone === "ok"
-                            ? "bg-ok-tint border-ok text-text"
+                            ? "fold-state-ok"
                             : badge.tone === "leak"
-                              ? "bg-leak-tint border-leak text-text"
-                              : "bg-warn-tint border-warn text-text"
+                              ? "fold-state-failed"
+                              : "fold-state-skipped"
                         }`}
                       >
-                        {badge.label}
+                        {reasonText ? badge.label.split(" · ")[0] : badge.label}
                       </span>
                       {reasonText && (
                         <span className="text-[12px] text-muted">
