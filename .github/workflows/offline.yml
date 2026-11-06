@@ -1,0 +1,13 @@
+name: offline replay checks
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv lock --check
+      - run: uv sync --frozen
+      - run: uv run --frozen ruff check src tests
+      - run: uv run --frozen pytest tests -q
+      - run: uv run --frozen ripple demo

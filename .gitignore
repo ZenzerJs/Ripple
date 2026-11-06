@@ -1,0 +1,13 @@
+/ML-Stock-Simulator/
+/.venv/
+/.uv-cache/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+/data/
+/artifacts/
+.env
+.env.*
+*.egg-info/
+/.pytest-work/
