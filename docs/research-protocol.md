@@ -1,0 +1,5 @@
+# Research protocol
+
+The 2020 replay is a software/accounting demonstration, not an untouched holdout or proof of portfolio utility. The predecessor's SPY and AAPL research has already inspected outcomes across 2016–2026. Future model selection must declare any overlapping exposure and reserve a new final evaluation period before selecting models or stress scenarios.
+
+Future variance research must define its target and availability, fit preprocessing only on training data, use chronological splits and mature labels, compare fixed baselines on common dates, and record failures. Forecasts and allocation policies remain separate. Comparative stress search must use synchronized multi-asset blocks, recompute features on each path, disclose budget and selection, and avoid tuning on the final period. Feature importance is diagnostic, not proof of causation. Forward testing must append input hashes and decisions before execution, then append outcomes separately. None of these future stages is implemented here.

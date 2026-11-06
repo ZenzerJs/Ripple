@@ -1,0 +1,7 @@
+# Data contract
+
+The universe is SPY, IEF, GLD and VNQ. Yahoo download is explicit: daily, `auto_adjust=False`, `actions=True`, `repair=False`, `keepna=True`, `ignore_tz=True`, grouped by ticker, no threaded download. Save the complete provider response as raw CSV, then calculate each adjusted OHLC value as raw OHLC times `Adj Close / Close`. No dividends or splits are subsequently paid to the ledger. The resulting fractional units represent a total-return approximation, not actual ETF shares; applying a close-based factor to an intraday open is an approximation.
+
+Each snapshot records request dates (end exclusive), retrieval UTC, provider version, symbols and raw/normalized SHA-256. Replay checks both hashes and requires exactly one finite, positive, internally consistent OHLC row per XNYS session and symbol. Missing, extra, duplicate and malformed observations fail; no forward filling. The December 30 and December 31, 2019 closes provide initialization history for the 2020 replay.
+
+A session's observation is conservatively available at midnight New York time following that session. The strategy sees only dimensionless close-to-close returns through its decision session and current portfolio state; it cannot see the next open or later rows. The historical Yahoo snapshot is adjusted retrospectively, so session availability is a simulation assumption, not proof of point-in-time data.
