@@ -139,7 +139,11 @@ def compute_extended_metrics(
         dd_contributions = {sym: float(sub_contrib[sym]) for sym in SYMBOLS}
 
     # Reliability and predicted vs realized 5-session risk
-    executed_decisions = [d for d in result.decisions if d["execution_session"] is not None]
+    executed_decisions = [
+        d
+        for d in result.decisions
+        if d["execution_session"] is not None and d["weights"] is not None
+    ]
     skipped_count = 0
     fallback_count = 0
     skip_reasons: list[str] = []
@@ -147,6 +151,7 @@ def compute_extended_metrics(
     real_vols: list[float] = []
 
     session_to_idx = {row["session"]: idx for idx, row in enumerate(result.ledger)}
+    init_session = result.decisions[0]["session"] if result.decisions else None
     if audit_log is not None:
         for dec in audit_log:
             if dec.action == "skip_retain":
@@ -169,11 +174,15 @@ def compute_extended_metrics(
                     port_var = sum(
                         (dec.target_weights.get(s, 0.0) ** 2) * float(f_map[s]) for s in SYMBOLS
                     )
-                    pred_vols.append(float(math.sqrt(max(0.0, port_var))))
+                    pos: int | None = None
                     if dec.decision_session in session_to_idx:
                         pos = session_to_idx[dec.decision_session]
+                    elif dec.decision_session == init_session:
+                        pos = -1
+                    if pos is not None:
                         window_rets = daily_returns[pos + 1 : pos + 6]
                         if len(window_rets) == 5:
+                            pred_vols.append(float(math.sqrt(max(0.0, port_var))))
                             real_vols.append(float(math.sqrt(np.mean(window_rets**2))))
 
     return {
@@ -230,26 +239,27 @@ def run_forecast_portfolio_comparison(
         raise ValueError("No candidate forecast sessions found")
 
     dates = market.closes.index
-    if eval_start is None:
-        first_decision_ts = pd.Timestamp(all_candidate_sessions[0])
-        first_decision_pos = int(dates.get_loc(first_decision_ts))
-        if first_decision_pos + 1 >= len(dates):
-            raise ValueError("First candidate decision session has no subsequent session")
-        start_str = dates[first_decision_pos + 1].strftime("%Y-%m-%d")
-    else:
-        start_str = eval_start
     end_str = eval_end if eval_end is not None else snapshot_end
+    if eval_start is None:
+        first_decision_session = all_candidate_sessions[0]
+    else:
+        req_pos = int(dates.get_loc(pd.Timestamp(eval_start)))
+        if req_pos < 2:
+            raise ValueError("Need a prior decision session and prior close for initialization")
+        req_decision = dates[req_pos - 1].strftime("%Y-%m-%d")
+        eligible = [s for s in all_candidate_sessions if req_decision <= s < end_str]
+        if not eligible:
+            raise ValueError(f"No candidate forecast sessions in [{req_decision}, {end_str})")
+        first_decision_session = eligible[0]
 
-    start_pos = int(dates.get_loc(pd.Timestamp(start_str)))
-    initial_decision_session = dates[start_pos - 1].strftime("%Y-%m-%d")
-    active_decision_sessions = sorted(
-        {
-            s
-            for s in all_candidate_sessions
-            if initial_decision_session <= s <= end_str
-        }
-        | {initial_decision_session}
-    )
+    first_decision_pos = int(dates.get_loc(pd.Timestamp(first_decision_session)))
+    if first_decision_pos + 1 >= len(dates):
+        raise ValueError("First candidate decision session has no subsequent session")
+    start_str = dates[first_decision_pos + 1].strftime("%Y-%m-%d")
+    initial_decision_session = first_decision_session
+    active_decision_sessions = [
+        s for s in all_candidate_sessions if initial_decision_session <= s < end_str
+    ]
 
     fallback_records = [f for f in forecasts if f.model_id == "rolling21"]
     strategies: list[Any] = [
