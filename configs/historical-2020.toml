@@ -1,0 +1,8 @@
+snapshot = "data/snapshots/2020"
+snapshot_start = "2019-12-30"
+snapshot_end = "2020-12-31"
+start = "2020-01-02"
+end = "2020-12-31"
+initial_cash = 10000.0
+fee_bps = 5.0
+output = "artifacts/historical/2020"
