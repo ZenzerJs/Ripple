@@ -875,6 +875,24 @@ html[data-theme="dark"] .ripple-field-dark {
   border-top: 1px solid var(--border-subtle);
   line-height: 1.65;
 }
+.fold-state-label {
+  display: block;
+  width: fit-content;
+  padding-left: 8px;
+  border-left: 2px solid var(--border-strong);
+  color: var(--text);
+  font-weight: 600;
+  line-height: 1.5;
+}
+.fold-state-ok {
+  border-color: var(--ok);
+}
+.fold-state-failed {
+  border-color: var(--leak);
+}
+.fold-state-skipped {
+  border-color: var(--comparison);
+}
 @media (min-width: 1600px) {
   .portfolio-analysis {
     grid-template-columns: minmax(0, 1fr) 336px;
