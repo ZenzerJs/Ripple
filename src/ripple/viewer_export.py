@@ -463,12 +463,18 @@ def build_phase3_to_6_lab_bundle(
         "decision_audit_samples": sample_decisions,
         "stress_summary": {
             "dataset_sha256": stress_manifest.get("dataset_sha256"),
-            "search_budget": stress_manifest.get("search_budget", {}),
+            "search_budget": (
+                stress_manifest.get("budget")
+                or stress_manifest.get("search_budget", {})
+            ),
             "verdict_counts": stress_manifest.get("verdict_counts", {}),
             "strategy_failure_profiles": stress_manifest.get(
                 "strategy_failure_profiles", {}
             ),
-            "worst_valid_scenario": stress_manifest.get("worst_valid_scenario", {}),
+            "worst_valid_scenario": (
+                stress_manifest.get("worst_failure_case")
+                or stress_manifest.get("worst_valid_scenario", {})
+            ),
         },
         "forward_ledger": {
             "verification": ledger_verification,

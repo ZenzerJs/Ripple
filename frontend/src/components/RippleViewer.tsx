@@ -9,6 +9,7 @@ import {
   computeComparisonView,
   formatModelName,
   validateLeakageAuditRun,
+  verifyRunFileHash,
 } from "@/lib/schema";
 import { RunHeader, ScreenTab } from "@/components/RunHeader";
 import { FindingCard } from "@/components/FindingCard";
@@ -61,7 +62,9 @@ export function RippleViewer({
       setReducedMotion(currentMotion);
 
       const params = new URLSearchParams(window.location.search);
-      if (params.get("fixtures") === "1" || params.get("fixtures") === "true") {
+      const fixturesEnabled =
+        params.get("fixtures") === "1" || params.get("fixtures") === "true";
+      if (fixturesEnabled) {
         setShowFixtures(true);
       }
       const tabParam = params.get("tab") as ScreenTab | null;
@@ -74,7 +77,9 @@ export function RippleViewer({
       const runParam = params.get("run");
       if (
         runParam &&
-        initialIndex.runs.some((r) => r.run_id === runParam)
+        initialIndex.runs.some(
+          (r) => r.run_id === runParam && (fixturesEnabled || !r.fixture)
+        )
       ) {
         setSelectedRunId(runParam);
       }
@@ -162,11 +167,7 @@ export function RippleViewer({
     initialIndex.runs.find((r) => r.run_id === selectedRunId) ??
     initialIndex.runs[0];
   const rawRunPayload = initialRunsByFile[selectedEntry.file];
-  const hashVerified = Boolean(
-    selectedEntry.sha256 &&
-      initialHashesByFile[selectedEntry.file] &&
-      selectedEntry.sha256 === initialHashesByFile[selectedEntry.file]
-  );
+  const hashVerified = verifyRunFileHash(selectedEntry, initialHashesByFile);
   const validation = useMemo(
     () => validateLeakageAuditRun(rawRunPayload),
     [rawRunPayload]

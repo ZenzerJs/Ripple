@@ -77,3 +77,25 @@ def test_export_all_viewer_runs_synthetic_fallback(tmp_path: Path) -> None:
         "unavailable",
     }
 
+
+def test_committed_viewer_exports_match_index_sha256_and_lab_bundle() -> None:
+    import hashlib
+
+    runs_dir = Path(__file__).resolve().parents[1] / "frontend" / "public" / "runs"
+    index = json.loads((runs_dir / "index.json").read_text(encoding="utf-8"))
+    public_runs = [r for r in index["runs"] if not r.get("fixture")]
+    fixture_runs = [r for r in index["runs"] if r.get("fixture")]
+    assert [r["ticker"] for r in public_runs] == ["SPY", "IEF"]
+    assert len(fixture_runs) == 3
+
+    for entry in index["runs"]:
+        raw_bytes = (runs_dir / entry["file"]).read_text(encoding="utf-8").encode("utf-8")
+        assert hashlib.sha256(raw_bytes).hexdigest() == entry["sha256"]
+
+    lab = json.loads((runs_dir / index["lab_bundle_file"]).read_text(encoding="utf-8"))
+    assert lab["status"] == "verified"
+    assert lab["stress_summary"]["search_budget"]["total_scenarios_evaluated"] == 18
+    assert lab["stress_summary"]["worst_valid_scenario"]["scenario_id"] == "search_b5_s104"
+    assert lab["forward_ledger"]["verification"]["valid"] is True
+
+

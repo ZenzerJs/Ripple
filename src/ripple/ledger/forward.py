@@ -274,7 +274,7 @@ class ForwardDecisionLedger:
         final_record = LedgerRecord(
             **{**draft.to_dict(), "record_hash": draft.compute_hash()}
         )
-        with self.path.open("a", encoding="utf-8") as fh:
+        with self.path.open("a", encoding="utf-8", newline="\n") as fh:
             fh.write(
                 json.dumps(final_record.to_dict(), sort_keys=True, separators=(",", ":")) + "\n"
             )

@@ -23364,7 +23364,33 @@
   },
   "stress_summary": {
     "dataset_sha256": "6cbb93460e1241a164685d658bc5100382283cc86d74dfd7ac1af1e5211dc133",
-    "search_budget": {},
+    "search_budget": {
+      "block_lengths": [
+        5,
+        10,
+        21
+      ],
+      "search_seeds": [
+        101,
+        102,
+        103,
+        104
+      ],
+      "validation_seeds": [
+        201,
+        202
+      ],
+      "total_scenarios_evaluated": 18,
+      "search_scenarios": 12,
+      "validation_scenarios": 6,
+      "models_recomputed_per_path": [
+        "rolling21",
+        "ewma094",
+        "har_ols",
+        "ridge"
+      ],
+      "target_strategy": "forecast_ridge"
+    },
     "verdict_counts": {
       "valid": 15,
       "borderline": 3
@@ -23420,7 +23446,86 @@
         "evaluated_valid_scenarios": 15
       }
     },
-    "worst_valid_scenario": {}
+    "worst_valid_scenario": {
+      "scenario_id": "search_b5_s104",
+      "block_length": 5,
+      "seed": 104,
+      "path_sha256": "02f20621a95233a53d750c384ae1ad10d7c558a25b257c09e1076f725e0ad31e",
+      "verdict": "valid",
+      "reasons": "passed_all_empirical_screens",
+      "strategy_outcomes": {
+        "buy_and_hold": {
+          "net_return": 2.300850049828206,
+          "relative_return_vs_ew5d": 0.1958465700840324,
+          "max_drawdown": -0.10126064900442522,
+          "excess_drawdown_vs_ew5d": -0.007007295354993559,
+          "annualized_volatility": 0.10370217837703645,
+          "sharpe_ratio": 1.5458965746484905,
+          "turnover": 0.9995002498750624,
+          "total_costs": 4.997501249375312
+        },
+        "equal_weight_5d": {
+          "net_return": 2.1050034797441737,
+          "relative_return_vs_ew5d": 0.0,
+          "max_drawdown": -0.09425335364943166,
+          "excess_drawdown_vs_ew5d": 0.0,
+          "annualized_volatility": 0.09554935693033342,
+          "sharpe_ratio": 1.5861818343429437,
+          "turnover": 5.772228290525356,
+          "total_costs": 46.159700601719265
+        },
+        "trailing_vol21_5d": {
+          "net_return": 1.6661486317794343,
+          "relative_return_vs_ew5d": -0.4388548479647394,
+          "max_drawdown": -0.0830025285620073,
+          "excess_drawdown_vs_ew5d": 0.011250825087424365,
+          "annualized_volatility": 0.08106919647464385,
+          "sharpe_ratio": 1.6097715821956844,
+          "turnover": 27.26420527242268,
+          "total_costs": 207.874345195237
+        },
+        "forecast_rolling21": {
+          "net_return": 1.6677871724485125,
+          "relative_return_vs_ew5d": -0.4372163072956612,
+          "max_drawdown": -0.0820524360079472,
+          "excess_drawdown_vs_ew5d": 0.012200917641484454,
+          "annualized_volatility": 0.08107870530003125,
+          "sharpe_ratio": 1.6105760497777246,
+          "turnover": 26.998656627824055,
+          "total_costs": 206.98505943681872
+        },
+        "forecast_ewma094": {
+          "net_return": 1.6987279682963394,
+          "relative_return_vs_ew5d": -0.40627551144783425,
+          "max_drawdown": -0.07740614575795524,
+          "excess_drawdown_vs_ew5d": 0.016847207891476423,
+          "annualized_volatility": 0.0808411861135533,
+          "sharpe_ratio": 1.6335770781402772,
+          "turnover": 19.510130409805154,
+          "total_costs": 150.43361619544658
+        },
+        "forecast_har_ols": {
+          "net_return": 1.6081840094650381,
+          "relative_return_vs_ew5d": -0.49681947027913553,
+          "max_drawdown": -0.07780048358059821,
+          "excess_drawdown_vs_ew5d": 0.016452870068833447,
+          "annualized_volatility": 0.08062534987385768,
+          "sharpe_ratio": 1.582810945300554,
+          "turnover": 12.888146375095905,
+          "total_costs": 99.23892682795012
+        },
+        "forecast_ridge": {
+          "net_return": 1.60825555839545,
+          "relative_return_vs_ew5d": -0.4967479213487236,
+          "max_drawdown": -0.07780257341656649,
+          "excess_drawdown_vs_ew5d": 0.01645078023286517,
+          "annualized_volatility": 0.08062495670183843,
+          "sharpe_ratio": 1.5828624198217585,
+          "turnover": 12.87201865986889,
+          "total_costs": 99.10752512805169
+        }
+      }
+    }
   },
   "forward_ledger": {
     "verification": {

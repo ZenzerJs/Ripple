@@ -49,9 +49,7 @@ export function RunHeader({
   const kindLabel =
     kind === "leakage_audit" ? "TEMPORAL INTEGRITY" : "PORTFOLIO & STRESS LAB";
 
-  const selectableRuns = runs.filter(
-    (r) => showFixtures || !r.fixture || r.run_id === selectedRunId
-  );
+  const selectableRuns = runs.filter((r) => showFixtures || !r.fixture);
 
   const navItems: Array<{ id: ScreenTab; label: string }> = [
     { id: "overview", label: "Overview" },

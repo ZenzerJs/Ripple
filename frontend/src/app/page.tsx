@@ -15,12 +15,14 @@ export default function HomePage() {
   for (const entry of indexManifest.runs) {
     const filePath = path.join(runsDir, entry.file);
     if (fs.existsSync(filePath)) {
-      const buf = fs.readFileSync(filePath);
+      const rawText = fs
+        .readFileSync(filePath, "utf-8")
+        .replace(/\r\n/g, "\n");
       hashesByFile[entry.file] = crypto
         .createHash("sha256")
-        .update(buf)
+        .update(rawText, "utf-8")
         .digest("hex");
-      runsByFile[entry.file] = JSON.parse(buf.toString("utf-8"));
+      runsByFile[entry.file] = JSON.parse(rawText);
     }
   }
 

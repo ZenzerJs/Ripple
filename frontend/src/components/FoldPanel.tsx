@@ -411,26 +411,26 @@ export function FoldPanel({
           )}
           {corrPrimary.state === "model_failed" && (
             <p className="text-muted mt-1">
-              At forecast date{" "}
-              <span className="font-mono">{activeDate}</span>, the model solver
-              failed to converge on the{" "}
+              Contract rule for{" "}
+              <code className="font-mono text-[12px]">model_failed</code>: when a
+              model solver fails on the{" "}
               <strong className="font-mono text-text">
                 {corrPrimary.train_count}
               </strong>{" "}
-              matured training rows. The failure is recorded explicitly as{" "}
+              matured training rows at{" "}
+              <span className="font-mono">{activeDate}</span>, the fold is
+              recorded explicitly as{" "}
               <code className="font-mono text-[12px]">unavailable</code> rather
               than silently substituting another model&apos;s forecast.
             </p>
           )}
           {corrPrimary.state === "unavailable" && (
             <p className="text-muted mt-1">
-              At forecast date{" "}
-              <span className="font-mono">{activeDate}</span>, required feature
-              observations were missing at the decision cutoff across{" "}
-              <strong className="font-mono text-text">
-                {corrPrimary.train_count}
-              </strong>{" "}
-              matured training rows. The fold is preserved as{" "}
+              Contract rule for{" "}
+              <code className="font-mono text-[12px]">unavailable</code>: when
+              required feature observations are absent at the{" "}
+              <span className="font-mono">{activeDate}</span> decision cutoff,
+              the fold is preserved as{" "}
               <code className="font-mono text-[12px]">unavailable</code> rather
               than forward-filling missing inputs.
             </p>

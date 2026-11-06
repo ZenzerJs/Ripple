@@ -1,9 +1,12 @@
+import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { describe, expect, it } from "vitest";
 import {
+  RunIndexManifest,
   computeComparisonView,
   validateLeakageAuditRun,
+  verifyRunFileHash,
 } from "../../src/lib/schema";
 
 const runsDir = path.resolve(__dirname, "../../public/runs");
@@ -118,4 +121,40 @@ describe("Ripple Frontend Data Contract & Reconciliation", () => {
     expect(view.unsupportedReason).toContain("24-month horizon");
     expect(view.nearestValidSelection).not.toBeNull();
   });
+
+  it("verifies run file SHA-256 hashes against index.json and rejects tampered hashes", () => {
+    const index = JSON.parse(
+      fs.readFileSync(path.join(runsDir, "index.json"), "utf-8")
+    ) as RunIndexManifest;
+
+    const defaultVisible = index.runs.filter((r) => !r.fixture);
+    expect(defaultVisible.map((r) => r.run_id)).toEqual([
+      "leakage-audit-spy-2016-2026",
+      "leakage-audit-ief-2016-2026",
+    ]);
+
+    const hashesByFile: Record<string, string> = {};
+    for (const entry of index.runs) {
+      const text = fs
+        .readFileSync(path.join(runsDir, entry.file), "utf-8")
+        .replace(/\r\n/g, "\n");
+      hashesByFile[entry.file] = crypto
+        .createHash("sha256")
+        .update(text, "utf-8")
+        .digest("hex");
+      expect(verifyRunFileHash(entry, hashesByFile)).toBe(true);
+    }
+
+    const spyEntry = index.runs[0];
+    expect(
+      verifyRunFileHash(spyEntry, {
+        ...hashesByFile,
+        [spyEntry.file]: "0".repeat(64),
+      })
+    ).toBe(false);
+    expect(verifyRunFileHash({ ...spyEntry, sha256: "" }, hashesByFile)).toBe(
+      false
+    );
+  });
 });
+

@@ -191,7 +191,8 @@ export interface PortfolioReplayBundle {
         worst_relative_return_vs_ew5d: number;
         median_relative_return_vs_ew5d: number;
         underperformed_ew5d_count: number;
-        valid_scenario_count: number;
+        valid_scenario_count?: number;
+        evaluated_valid_scenarios?: number;
       }
     >;
     worst_valid_scenario?: {
@@ -199,6 +200,8 @@ export interface PortfolioReplayBundle {
       block_length?: number;
       seed?: number;
       path_sha256?: string;
+      verdict?: string;
+      reasons?: string | string[];
       realism?: {
         verdict?: string;
         reasons?: string[];
@@ -234,6 +237,21 @@ export type ValidationResult<T> =
   | { ok: false; errors: string[] };
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const SHA256_RE = /^[0-9a-f]{64}$/i;
+
+export function verifyRunFileHash(
+  entry: RunIndexEntry | undefined,
+  hashesByFile: Record<string, string>
+): boolean {
+  if (!entry?.sha256 || !SHA256_RE.test(entry.sha256)) {
+    return false;
+  }
+  const actual = hashesByFile[entry.file];
+  if (!actual || !SHA256_RE.test(actual)) {
+    return false;
+  }
+  return entry.sha256.toLowerCase() === actual.toLowerCase();
+}
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);

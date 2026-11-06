@@ -10,7 +10,7 @@
       "status": "verified",
       "kind": "leakage_audit",
       "fixture": false,
-      "sha256": "5987f44ff2ded92f5a144d349f1752ff64de4f94cf63c6272e52bca8b95c6972"
+      "sha256": "44c95b689142139ee1ea0afc997b40c3795e324d54dcd5ca90438e16a674fc0d"
     },
     {
       "run_id": "leakage-audit-ief-2016-2026",
@@ -20,7 +20,7 @@
       "status": "verified",
       "kind": "leakage_audit",
       "fixture": false,
-      "sha256": "3308e9f51260cc54d0243b57807eeab004f0eee38f6c70f70eda89a4b50fdf06"
+      "sha256": "492980ff11c2d8a29081d549cf28059f4e147f2f85a8d285f207fec68f0e487f"
     },
     {
       "run_id": "leakage-audit-vnq-null-control",
@@ -30,7 +30,7 @@
       "status": "draft",
       "kind": "leakage_audit",
       "fixture": true,
-      "sha256": "cde99b8a1df6cb472b082d20380ff6b5261db96248a8477aee1bcb918ea415d7"
+      "sha256": "90493f3015f59277bd9018e2146e3dc74c96948542645cbcac6fccce74a80784"
     },
     {
       "run_id": "leakage-audit-gld-draft",
@@ -40,7 +40,7 @@
       "status": "draft",
       "kind": "leakage_audit",
       "fixture": true,
-      "sha256": "de0c1af82db41d80d5f97ddc37a6f910c1d1dacfd4537279594c12a6c62a033f"
+      "sha256": "4f7e34bb63b5373b71cd36735166e26303fffe8c5d3ae198f55e05c47ed41018"
     },
     {
       "run_id": "invalid-provenance-fixture",

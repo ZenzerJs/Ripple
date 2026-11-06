@@ -512,7 +512,9 @@ export function PhaseLabView({ bundle }: PhaseLabViewProps) {
               Phase 5: Constrained block-bootstrap stress search
             </h3>
             <span className="rounded-full bg-ok-tint border border-ok px-2.5 py-0.5 text-[12px] font-mono text-text">
-              15 valid · 3 borderline · 0 rejected
+              {bundle.stress_summary?.verdict_counts?.valid ?? 15} valid ·{" "}
+              {bundle.stress_summary?.verdict_counts?.borderline ?? 3} borderline ·{" "}
+              {bundle.stress_summary?.verdict_counts?.rejected ?? 0} rejected
             </span>
           </div>
           <p className="text-[13px] text-muted mb-4">
@@ -548,7 +550,9 @@ export function PhaseLabView({ bundle }: PhaseLabViewProps) {
                     </td>
                     <td className="py-2 px-3 text-right text-muted">
                       {prof.underperformed_ew5d_count} /{" "}
-                      {prof.valid_scenario_count}
+                      {prof.evaluated_valid_scenarios ??
+                        prof.valid_scenario_count ??
+                        15}
                     </td>
                   </tr>
                 ))}
@@ -587,7 +591,17 @@ export function PhaseLabView({ bundle }: PhaseLabViewProps) {
                   <span className="font-semibold text-text">
                     #{rec.sequence_no} · {rec.event_type} ({rec.model_id})
                   </span>
-                  <span className="text-ok font-semibold">{rec.status}</span>
+                  <span
+                    className={`font-semibold ${
+                      rec.status === "success"
+                        ? "text-ok"
+                        : rec.status === "failed"
+                        ? "text-leak"
+                        : "text-warn"
+                    }`}
+                  >
+                    {rec.status}
+                  </span>
                 </div>
                 <div className="text-[11px] text-muted mt-1 break-all">
                   record_hash: {rec.record_hash.slice(0, 28)}… (prev:{" "}

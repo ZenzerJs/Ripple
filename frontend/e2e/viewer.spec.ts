@@ -86,6 +86,13 @@ test.describe("Ripple Frontend Viewer E2E", () => {
   test("handles Draft run exclusion on Overview, Failed & Unavailable fold states, Null-difference run, Invalid provenance block, Unsupported URL recovery, and Phase 3-6 Lab view", async ({
     page,
   }) => {
+    // 0. Without ?fixtures=1, a fixture run query param is ignored and only verified public runs appear
+    await page.goto("/?run=leakage-audit-gld-draft");
+    await expect(page.getByTestId("run-selector").locator("option")).toHaveCount(2);
+    await expect(page.getByTestId("run-selector")).toHaveValue(
+      "leakage-audit-spy-2016-2026"
+    );
+
     // 1. Tampered URL with unsupported horizon=24 and unknown model (with fixtures=1 enabled) -> verify recovery banner
     await page.goto(
       "/?fixtures=1&tab=compare&run=leakage-audit-spy-2016-2026&horizon=24&model=unknown_model"
@@ -153,6 +160,9 @@ test.describe("Ripple Frontend Viewer E2E", () => {
     );
     await expect(page.getByTestId("lab-stress-section")).toContainText(
       "search_b5_s104"
+    );
+    await expect(page.getByTestId("lab-stress-section")).toContainText(
+      "14 / 15"
     );
     await expect(page.getByTestId("lab-forward-ledger")).toContainText(
       "Chain Verified"
